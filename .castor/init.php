@@ -32,6 +32,13 @@ function init(): void
     ]);
     fs()->rename('README.dist.md', 'README.md');
 
+    // The manifest of the docker-starter package (see .castor/starter/), unless the
+    // application lives at the root of the repository and has its own
+    $composerJson = json_decode((string) @file_get_contents('composer.json'), true);
+    if ('jolicode/docker-starter' === ($composerJson['name'] ?? null)) {
+        fs()->remove('composer.json');
+    }
+
     $readMeContent = file_get_contents('README.md');
 
     if (false === $readMeContent) {

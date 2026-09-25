@@ -1,9 +1,11 @@
 <?php
 
-// This file tests the castor tasks shared with the projects (context variables, paths...),
-// against throwaway projects created in a temporary directory: it needs neither Docker
-// nor PHP on the host, only Castor. It is entirely self-contained: to drop it from a
-// project generated from this template, just delete this file (`castor init` does it).
+// This file tests the castor tasks shared with the projects (.castor/starter/: context
+// variables, paths...), against throwaway projects created in a temporary directory, which
+// import them either from a copy of the directory, or as a Castor remote package. It needs
+// neither Docker nor PHP on the host, only Castor. It is entirely self-contained: to drop
+// it from a project generated from this template, just delete this file (`castor init`
+// does it).
 
 namespace test;
 
@@ -15,6 +17,9 @@ use function Castor\fs;
 use function Castor\io;
 use function Castor\variable;
 
+const IMPORT_LOCAL = 'local';
+const IMPORT_PACKAGE = 'package';
+
 #[AsTask(description: 'Tests the castor tasks shared with the projects')]
 function starter(): void
 {
@@ -22,18 +27,22 @@ function starter(): void
 
     $failures = 0;
 
-    foreach (get_starter_test_cases() as $name => $case) {
-        $project = create_test_project();
+    foreach ([IMPORT_LOCAL => 'Imported from a copy of .castor/starter/', IMPORT_PACKAGE => 'Imported as a Castor remote package'] as $import => $title) {
+        io()->section($title);
 
-        try {
-            $case($project);
-            io()->writeln("<info>✔</info> {$name}");
-        } catch (TestFailure $e) {
-            ++$failures;
-            io()->writeln("<error>✘</error> {$name}");
-            io()->writeln('  ' . str_replace("\n", "\n  ", $e->getMessage()));
-        } finally {
-            fs()->remove($project);
+        foreach (get_starter_test_cases() as $name => $case) {
+            $project = create_test_project($import);
+
+            try {
+                $case($project);
+                io()->writeln("<info>✔</info> {$name}");
+            } catch (TestFailure $e) {
+                ++$failures;
+                io()->writeln("<error>✘</error> {$name}");
+                io()->writeln('  ' . str_replace("\n", "\n  ", $e->getMessage()));
+            } finally {
+                fs()->remove($project);
+            }
         }
     }
 
@@ -50,6 +59,16 @@ function starter(): void
 function get_starter_test_cases(): array
 {
     return [
+        'The shared tasks are available' => static function (string $project): void {
+            $output = capture(['castor', 'list', '--format=json'], context: context()->withWorkingDirectory($project)->withEnvironment(['CASTOR_CONTEXT' => false]));
+            $lines = explode("\n", trim($output));
+            $commands = array_column(json_decode((string) end($lines), true, flags: JSON_THROW_ON_ERROR)['commands'], 'name');
+
+            foreach (['docker:build', 'docker:push', 'qa:all', 'qa:phpunit', 'postgres:client', 'docker:ports'] as $command) {
+                assert_same(true, \in_array($command, $commands, true), "{$command} command");
+            }
+        },
+
         'The application lives in "application/" by default' => static function (string $project): void {
             $result = dump_project($project);
 
@@ -167,17 +186,37 @@ function get_starter_test_cases(): array
  * Creates a throwaway project using the shared castor tasks, with a "test-dump" task printing
  * what the tests check, as JSON.
  */
-function create_test_project(): string
+function create_test_project(string $import): string
 {
     $project = fs()->tempnam(sys_get_temp_dir(), 'docker-starter-test-');
     fs()->remove($project);
     fs()->mkdir($project);
     $project = (string) realpath($project);
 
-    $imports = implode("\n", array_map(
-        static fn (string $file) => \sprintf('import(%s);', var_export(variable('root_dir') . '/.castor/' . $file, true)),
-        ['context.php', 'docker.php', 'postgres.php', 'qa.php', 'worktree.php'],
-    ));
+    if (IMPORT_PACKAGE === $import) {
+        // The package is installed from this repository, without any network access
+        fs()->dumpFile("{$project}/castor.composer.json", json_encode([
+            'repositories' => [
+                [
+                    'type' => 'path',
+                    'url' => variable('root_dir'),
+                    'options' => [
+                        'versions' => ['jolicode/docker-starter' => 'dev-main'],
+                    ],
+                ],
+                ['packagist.org' => false],
+            ],
+            'require' => [
+                'jolicode/docker-starter' => 'dev-main',
+            ],
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+
+        $imports = "import('composer://jolicode/docker-starter', file: '.castor/starter/index.php');";
+    } else {
+        fs()->mirror(variable('root_dir') . '/.castor/starter', "{$project}/.castor/starter");
+
+        $imports = "import(__DIR__ . '/.castor');";
+    }
 
     fs()->dumpFile("{$project}/castor.php", <<<PHP
         <?php

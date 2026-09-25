@@ -1,7 +1,7 @@
 # hadolint global ignore=DL3008
 
 # Where the application lives in the containers: /var/www is the repository root,
-# and the application may live in a sub directory (see "app_dir" in .castor/context.php)
+# and the application may live in a sub directory (see "app_dir" in .castor/starter/context.php)
 ARG APP_PATH=/var/www/application
 
 FROM debian:13.7-slim AS php-base

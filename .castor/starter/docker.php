@@ -1,5 +1,7 @@
 <?php
 
+// Shared by docker-starter with its projects: change it in docker-starter, never in a project (see index.php).
+
 namespace docker;
 
 use Castor\Attribute\AsArgsAfterOptionEnd;

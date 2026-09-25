@@ -77,10 +77,17 @@ After any PHP/Twig code change: `castor qa:cs --dry-run`,
 ## Conventions
 
 1. **Never invoke `docker compose` by hand**: use the `docker_compose()` /
-   `docker_compose_run()` functions from `.castor/docker.php` to write new tasks.
+   `docker_compose_run()` functions from `.castor/starter/docker.php` to write
+   new tasks.
 2. **Never hardcode ports or project names**: git worktree support automatically
    isolates project/volumes/ports. Use `variable('project_name')` etc.
 3. New recurring task? Make it a Castor task (`castor.php` or `.castor/*.php`),
    not a shell script.
-4. QA tool dependencies live in `tools/<tool>/composer.json`
+4. **In a project derived from docker-starter, never edit `.castor/starter/`**:
+   it is read-only, like a vendor directory. Configure these tasks with the
+   variables of `create_default_variables()` in `castor.php`, add tasks in
+   `castor.php` or in other files of `.castor/`, and change a shared task with a
+   Castor listener. In docker-starter itself, where these files are the source,
+   run `castor test:starter` after changing them.
+5. QA tool dependencies live in `tools/<tool>/composer.json`
    (not in `application/composer.json`).

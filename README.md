@@ -160,6 +160,84 @@ may need to use `castor completion > /to/somewhere`.
 
 Castor supports completion for `bash`, `zsh` & `fish` shells.
 
+## How to update docker-starter in a project
+
+The castor tasks shared by all the projects (`docker:*`, `qa:*`, `postgres:*`,
+the contexts...) live in `.castor/starter/`. In your project, this directory is
+read-only, like a vendor directory: never edit it. Customize the project
+elsewhere:
+
+* configure the shared tasks with the variables of `create_default_variables()`
+  in `castor.php` (see [Project configuration](#project-configuration));
+* add your own tasks in `castor.php`, or in your own files of `.castor/`;
+* change what a shared task does with a listener (see
+  [Change a shared task with a listener](#change-a-shared-task-with-a-listener)).
+
+### Install the shared castor tasks as a package
+
+By default, your project keeps a copy of `.castor/starter/`. To update it with
+`castor composer update` instead of copying files around, install it as a
+[Castor remote package](https://castor.jolicode.com/going-further/extending-castor/remote-imports/):
+
+1. Remove the `.castor/starter/` directory;
+2. Create a `castor.composer.json` file next to `castor.php`:
+   ```json
+   {
+       "repositories": [
+           {
+               "type": "vcs",
+               "url": "https://github.com/jolicode/docker-starter"
+           }
+       ],
+       "require": {
+           "jolicode/docker-starter": "dev-main"
+       }
+   }
+   ```
+3. Import the package in `castor.php`, next to the import of `.castor/`:
+   ```php
+   import('composer://jolicode/docker-starter', file: '.castor/starter/index.php');
+   ```
+4. Ignore the `/.castor/vendor/` directory in `.gitignore`, and commit the
+   `castor.composer.lock` file;
+5. If PHPStan analyses the castor files, add
+   `.castor/vendor/jolicode/docker-starter/.castor/starter` to its
+   `scanDirectories`.
+
+Then, `castor composer update jolicode/docker-starter` updates the tasks. As the
+copy of `.castor/starter/`, the package is read-only: customize it as explained
+[above](#how-to-update-docker-starter-in-a-project).
+
+> [!WARNING]
+> Castor remote imports are still experimental.
+
+The infrastructure files (`Dockerfile`, compose files, CI workflows...) are not
+part of the package: they are meant to be adapted to each project.
+
+### Change a shared task with a listener
+
+To run something before or after a shared task, use a
+[listener](https://castor.jolicode.com/going-further/extending-castor/events/)
+instead of editing it. For example, to warm the Symfony cache before PHPStan:
+
+```php
+use Castor\Attribute\AsListener;
+use Castor\Event\BeforeExecuteTaskEvent;
+
+use function Castor\context;
+use function docker\docker_compose_run;
+
+#[AsListener(event: BeforeExecuteTaskEvent::class)]
+function warmup_cache_before_phpstan(BeforeExecuteTaskEvent $event): void
+{
+    if ('qa:phpstan' !== $event->task->getName()) {
+        return;
+    }
+
+    docker_compose_run(['bin/console', 'cache:warmup', '--env=dev'], c: context()->withAllowFailure());
+}
+```
+
 ## Cookbooks
 
 ### How to install third party tools with Composer

@@ -1,0 +1,9 @@
+{
+    "name": "jolicode/docker-starter",
+    "description": "The castor tasks of docker-starter, to share them with the projects derived from it",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "jolicode/castor": "^1.9"
+    }
+}

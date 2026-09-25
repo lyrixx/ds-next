@@ -19,6 +19,8 @@
   * Add the `nodejs` variable, to pick the version of Node.js, or not to install it
   * Add the `writable_dirs` variable, the directories the production image lets the application write in
   * Add `castor test:starter` to test the castor tasks shared with the projects
+  * Move the castor tasks shared with the projects to `.castor/starter/`, which
+    can be installed as a Castor remote package (`jolicode/docker-starter`)
 * Services
   * Upgrade Traefik from v2.7 to v3.0
   * Upgrade to PostgreSQL v16
