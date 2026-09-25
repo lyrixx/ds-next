@@ -23,6 +23,7 @@ function init(): void
 
     fs()->remove([
         '.castor/test',
+        'doc/',
         'README.md',
         'CHANGELOG.md',
         'CONTRIBUTING.md',
