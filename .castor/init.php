@@ -9,19 +9,25 @@ use function Castor\variable;
 use function docker\app_dir;
 use function docker\build;
 use function docker\docker_compose_run;
+use function starter\has_docker_starter_only_parts;
+use function starter\strip_docker_starter_only;
 
 #[AsTask(description: 'Initialize the project')]
 function init(): void
 {
-    // The CI is kept for the project, without what only tests docker-starter itself
-    foreach (finder()->files()->in('.github')->name('*.yml') as $file) {
-        $content = preg_replace('{^[ \t]*# >>> docker-starter only.*?^[ \t]*# <<< docker-starter only\n}ms', '', $file->getContents());
-        // The PHP versions matrix is gone
-        $content = str_replace(' with PHP ${{ matrix.php-version }}', '', (string) $content);
-        fs()->dumpFile($file->getPathname(), rtrim($content) . "\n");
+    // The CI is kept for the project, without what only tests docker-starter itself (as
+    // `castor starter:sync` will compare it, see .castor/starter/sync.php)
+    foreach (finder()->files()->in('.github') as $file) {
+        $path = '.github/' . $file->getRelativePathname();
+
+        if (has_docker_starter_only_parts($path)) {
+            fs()->dumpFile($path, strip_docker_starter_only($file->getContents()));
+        }
     }
 
     fs()->remove([
+        // `castor starter:sync` reads it from docker-starter, never from the project
+        '.castor/starter/sync-default-exclude.json',
         '.castor/test',
         'doc/',
         'README.md',

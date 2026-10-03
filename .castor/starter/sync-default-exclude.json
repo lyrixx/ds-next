@@ -1,0 +1,17 @@
+[
+    ".castor/init.php",
+    ".castor/starter/sync-default-exclude.json",
+    ".castor/test/",
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "LICENSE",
+    "README.dist.md",
+    "README.md",
+    "application/",
+    "castor.php",
+    "composer.json",
+    "doc/",
+    "phpstan.neon",
+    "tools/*/composer.lock"
+]

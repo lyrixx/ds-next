@@ -60,6 +60,15 @@ Le but est de supprimer les écarts qui ne correspondent à aucun vrai besoin :
 
 ### Étape 1 : un outil de synchro avec merge 3-way (`castor starter:sync`)
 
+> Implémentée dans `.castor/starter/sync.php`. Écarts avec ce qui suit : le
+> merge se fait fichier par fichier avec `git merge-file` (pas de
+> `git apply --3way`, qui exige les blobs du starter dans le dépôt du projet),
+> et `app_dir` vient de la variable Castor, pas de `.docker-starter.json`.
+> L'`exclude` de `.docker-starter.json` ne contient que les exclusions propres
+> au projet : celles par défaut viennent de la version cible du starter
+> (`.castor/starter/sync-default-exclude.json`), pour qu'un fichier qui n'est
+> plus exclu reçoive tous les changements manqués.
+
 C'est l'étape qui enlève le plus de travail, parce qu'elle couvre tous les
 fichiers, Dockerfile et CI compris.
 

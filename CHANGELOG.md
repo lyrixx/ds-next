@@ -21,6 +21,8 @@
   * Add `castor test:starter` to test the castor tasks shared with the projects
   * Move the castor tasks shared with the projects to `.castor/starter/`, which
     can be installed as a Castor remote package (`jolicode/docker-starter`)
+  * Add `castor starter:sync` to update the files coming from docker-starter in
+    a project (CI workflows included), with a 3-way merge
 * Services
   * Upgrade Traefik from v2.7 to v3.0
   * Upgrade to PostgreSQL v16

@@ -164,14 +164,87 @@ Castor supports completion for `bash`, `zsh` & `fish` shells.
 
 The castor tasks shared by all the projects (`docker:*`, `qa:*`, `postgres:*`,
 the contexts...) live in `.castor/starter/`. In your project, this directory is
-read-only, like a vendor directory: never edit it. Customize the project
-elsewhere:
+read-only, like a vendor directory: `castor starter:sync` (or `castor composer
+update`, see below) updates it, never edit it. Customize the project elsewhere:
 
 * configure the shared tasks with the variables of `create_default_variables()`
   in `castor.php` (see [Project configuration](#project-configuration));
 * add your own tasks in `castor.php`, or in your own files of `.castor/`;
 * change what a shared task does with a listener (see
   [Change a shared task with a listener](#change-a-shared-task-with-a-listener)).
+
+### Update all the files with `castor starter:sync`
+
+`castor starter:sync` updates the files of your project that come from
+docker-starter (`Dockerfile`, compose files, CI workflows, castor tasks...),
+with a 3-way merge between the docker-starter version your project is based on,
+the new docker-starter version, and your project:
+
+* the changes of your project are kept, and the conflicts are left with the
+  usual git markers (`<<<<<<< project`), the task then exits with an error. The
+  next runs refuse to start until they are resolved, and Castor itself does not
+  start while a file of `.castor/starter/` has conflicts (resolve these ones
+  with a text editor);
+* the files deleted from your project are not recreated, the files deleted from
+  docker-starter are deleted, unless your project modified them;
+* the files of `application/` go to the application directory of your project
+  (the `app_dir` variable);
+* the GitHub workflows are merged without their "docker-starter only" blocks,
+  as `castor init` removed them from your project.
+
+As long as `.castor/starter/` is left untouched, it is updated without
+conflicts.
+
+The first time, tell it which docker-starter commit (or tag) your project is
+based on, it saves it in the `.docker-starter.json` file:
+
+```bash
+castor starter:sync --from=<commit>
+```
+
+If your project was created before this task existed, fetch it first from
+docker-starter, at the version you update to (`<ref>`, e.g. `main`), commit it
+(the task refuses to run with uncommitted changes), then run it from the
+docker-starter version of your last update (`<commit>`, the one your project
+was created from if it was never updated). Set the `app_dir` variable in
+`castor.php` before, if your application does not live in `application/`:
+
+```bash
+mkdir -p .castor/starter
+curl -fsSL https://raw.githubusercontent.com/jolicode/docker-starter/<ref>/.castor/starter/sync.php -o .castor/starter/sync.php
+git add .castor/starter/sync.php && git commit -m "Add castor starter:sync"
+castor starter:sync --from=<commit> --to=<ref>
+```
+
+This first update usually conflicts where your project changed by hand what
+docker-starter now configures (e.g. the paths of the application directory):
+keep the version of docker-starter there, and the real changes of your project.
+A merge without conflicts can also keep such a change, when docker-starter did
+not touch that line in the meantime (e.g. a path in the nginx configuration).
+So once this first update is committed, compare your project with
+docker-starter at the same version (the `ref` of `.docker-starter.json`), and
+align what is not a real change of your project:
+
+```bash
+git clone --quiet https://github.com/jolicode/docker-starter ../docker-starter
+git -C ../docker-starter checkout --quiet <ref>
+git diff --no-index ../docker-starter/infrastructure infrastructure
+git diff --no-index ../docker-starter/.castor/starter .castor/starter
+```
+
+Then, to update to the latest docker-starter version (or `--to=<ref>`):
+
+```bash
+castor starter:sync [--dry-run]
+```
+
+Commit the `.docker-starter.json` file with the result. The task never touches
+the files that the docker-starter version you update to lists in
+`.castor/starter/sync-default-exclude.json` (the documentation, `castor.php`,
+the application, this file itself...). Add the files of your project to leave alone to the
+`exclude` key of `.docker-starter.json`: a trailing slash excludes a whole
+directory, and shell wildcards are supported. The `repository` key allows to
+use a fork of docker-starter.
 
 ### Install the shared castor tasks as a package
 
@@ -212,7 +285,8 @@ copy of `.castor/starter/`, the package is read-only: customize it as explained
 > Castor remote imports are still experimental.
 
 The infrastructure files (`Dockerfile`, compose files, CI workflows...) are not
-part of the package: they are meant to be adapted to each project.
+part of the package: they are meant to be adapted to each project, update them
+with `castor starter:sync` (which then leaves `.castor/starter/` alone).
 
 ### Change a shared task with a listener
 
@@ -300,6 +374,7 @@ otherwise end up in the images:
 ```
 .castor
 .castor.stub.php
+.docker-starter.json
 .github
 .home
 .php-cs-fixer.cache
