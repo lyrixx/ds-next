@@ -321,6 +321,24 @@ the application, this file itself...). Add the files of your project to leave al
 directory, and shell wildcards are supported. The `repository` key allows to
 use a fork of docker-starter.
 
+### Update automatically, every week
+
+The `.github/workflows/starter-sync.yml` workflow runs `castor starter:sync`
+every Monday, and opens a pull request with the result, in draft when there
+are conflicts to resolve (on its branch, then mark it as ready). Nothing
+happens while the previous one is open.
+
+Give it a token in the `STARTER_SYNC_TOKEN` secret of the repository (a
+fine-grained token or a GitHub App, which can write the contents, the pull
+requests and the workflows): with the default token of the workflow, the CI
+does not run on the pull request, and an update of the workflows cannot be
+pushed.
+
+The steps shared by the jobs of the CI (Docker Buildx, the login to the
+registry, Castor) are in the `.github/actions/setup` composite action, updated
+with the rest: keep the jobs of your project in the workflows, and call it
+after `actions/checkout`.
+
 ### Install the shared castor tasks as a package
 
 By default, your project keeps a copy of `.castor/starter/`. To update it with

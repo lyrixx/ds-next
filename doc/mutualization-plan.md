@@ -125,6 +125,11 @@ fichiers, Dockerfile et CI compris.
 
 ### Étape 3 : la CI
 
+> Implémentée : la composite action `.github/actions/setup` (Buildx, connexion au
+> registry, Castor), copiée par la synchro et appelée en local
+> (`uses: ./.github/actions/setup`), pour rester à la même version que les tâches
+> Castor du projet.
+
 L'écart y est trop grand pour un seul workflow réutilisable :
 
 - mettre les étapes communes dans des **composite actions** du starter :
@@ -136,6 +141,11 @@ L'écart de `ci.yml` devrait alors se limiter à ce qui est vraiment propre à
 chaque projet.
 
 ### Étape 4 : automatisation
+
+> Implémentée : le workflow `.github/workflows/starter-sync.yml`, chaque lundi, suit
+> `main` (pas de tags), ouvre la PR en draft s'il y a des conflits, et ne fait rien
+> tant que la précédente est ouverte. Il lui faut le secret `STARTER_SYNC_TOKEN`
+> pour que la CI tourne sur la PR et que les workflows puissent être mis à jour.
 
 - Taguer les releases du starter (il y a déjà un `CHANGELOG.md`).
 - Dans chaque projet, un workflow déclenché par un cron hebdomadaire ou un

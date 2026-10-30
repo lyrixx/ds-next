@@ -1,0 +1,90 @@
+name: Update docker-starter
+
+# Every week, updates the files coming from docker-starter (castor starter:sync) and
+# opens a pull request, in draft when there are conflicts to resolve. Nothing happens
+# while the previous one is open: resolve it, merge it or close it first.
+#
+# Set the STARTER_SYNC_TOKEN secret (Settings > Secrets and variables > Actions) to a
+# token which can write the contents, the pull requests and the workflows of the
+# repository (a fine-grained token or a GitHub App): with the default token, the CI
+# does not run on the pull request, and an update of the workflows cannot be pushed.
+
+"on":
+    schedule:
+        - cron: "0 6 * * MON"
+    workflow_dispatch:
+
+permissions:
+    contents: write
+    pull-requests: write
+
+env:
+    # Fix for symfony/color detection. We know GitHub Actions can handle it
+    ANSICON: 1
+    BRANCH: docker-starter-sync
+
+jobs:
+    starter-sync:
+        name: Update docker-starter
+        # >>> docker-starter only
+        # docker-starter has nothing to update from
+        if: github.repository != 'jolicode/docker-starter'
+        # <<< docker-starter only
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                persist-credentials: false
+
+            - name: "Look for an open pull request"
+              id: open
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: echo "count=$(gh pr list --head "${BRANCH}" --state open --json number --jq length)" >> "${GITHUB_OUTPUT}"
+
+            - name: setup-castor
+              if: steps.open.outputs.count == '0'
+              uses: castor-php/setup-castor@2a495b8c91f00be6768ad8a040ba8634c797d386 # v1.1.0
+
+            # The task fails on conflicts, but still writes the files with their markers
+            - name: "Update the files coming from docker-starter"
+              id: sync
+              if: steps.open.outputs.count == '0'
+              run: |
+                  set -o pipefail
+
+                  if castor --no-ansi starter:sync | tee "${RUNNER_TEMP}/sync.txt"; then
+                      echo "conflicts=false" >> "${GITHUB_OUTPUT}"
+                  elif git grep --quiet --line-number '^<<<<<<< project$'; then
+                      echo "conflicts=true" >> "${GITHUB_OUTPUT}"
+                  else
+                      exit 1
+                  fi
+
+                  # Only a new "ref": nothing worth a pull request, the next update starts
+                  # from the previous one again
+                  if [ -z "$(git status --porcelain -- . ':!.docker-starter.json')" ]; then
+                      git checkout -- .docker-starter.json
+                  fi
+
+                  {
+                      echo 'body<<EOBODY'
+                      echo "Updates the files coming from docker-starter, with \`castor starter:sync\`."
+                      echo
+                      echo "\`\`\`"
+                      cat "${RUNNER_TEMP}/sync.txt"
+                      echo "\`\`\`"
+                      echo 'EOBODY'
+                  } >> "${GITHUB_OUTPUT}"
+
+            - name: "Open the pull request"
+              if: steps.open.outputs.count == '0'
+              uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+              with:
+                  token: ${{ secrets.STARTER_SYNC_TOKEN || github.token }}
+                  branch: ${{ env.BRANCH }}
+                  delete-branch: true
+                  commit-message: "Update docker-starter"
+                  title: ${{ steps.sync.outputs.conflicts == 'true' && 'Update docker-starter (conflicts to resolve)' || 'Update docker-starter' }}
+                  body: ${{ steps.sync.outputs.body }}
+                  draft: ${{ steps.sync.outputs.conflicts == 'true' }}
