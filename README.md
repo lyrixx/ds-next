@@ -48,7 +48,14 @@ keep the environment variable as an override (lowercased, as Docker requires):
 
 * `php_extensions` (optional, default: `[]`): The PHP extensions to install in
 the images, on top of those of docker-starter, by their name in the Debian
-packages (e.g. `['imagick', 'redis']` installs `php8.5-imagick` and `php8.5-redis`).
+packages (e.g. `['imagick', 'redis']` installs `php8.5-imagick` and `php8.5-redis`);
+
+* `nodejs` (optional, default: `true`): Whether to install Node.js and Yarn in
+the builder: `true` for the version of docker-starter, a major version (e.g.
+`'22'`) to pin another one, or `false` if the application does not need them
+(e.g. with the Symfony AssetMapper). Yarn is the version of the `packageManager`
+field of `package.json`, or the latest stable one: a project still on Yarn 1
+pins it (`"packageManager": "yarn@1.22.22"`).
 
 For example:
 

@@ -470,12 +470,22 @@ function workers_stop(): void
  */
 function get_build_args(Context $c): array
 {
-    return [
+    $args = [
         'APP_PATH' => container_app_dir($c),
         'PHP_EXTENSIONS' => implode(' ', $c['php_extensions']),
         'PHP_VERSION' => $c['php_version'],
         'PROJECT_NAME' => $c['project_name'],
     ];
+
+    // With true, the Dockerfile picks the version
+    if (false === $c['nodejs']) {
+        $args['NODEJS_VERSION'] = '';
+    } elseif (true !== $c['nodejs']) {
+        // The NodeSource repositories are named after the major version: "node_22.x"
+        $args['NODEJS_VERSION'] = str_contains((string) $c['nodejs'], '.') ? (string) $c['nodejs'] : "{$c['nodejs']}.x";
+    }
+
+    return $args;
 }
 
 /**

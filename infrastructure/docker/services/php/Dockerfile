@@ -112,26 +112,35 @@ FROM php-base AS builder
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-ARG NODEJS_VERSION=24.x
-RUN curl -s https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODEJS_VERSION} nodistro main" > /etc/apt/sources.list.d/nodesource.list
-
-# Default toys. Corepack keeps Yarn out of $HOME, which the containers mount from the
-# host: writable by the host user, to download the version of a project
-ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-ENV COREPACK_HOME=/usr/local/share/corepack
+# Default toys
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         "git" \
         "make" \
-        "nodejs" \
         "php${PHP_VERSION}-dev" \
         "unzip" \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/* \
-    && corepack enable \
-    && corepack prepare yarn@stable --activate \
-    && chmod -R a+rwX "${COREPACK_HOME}"
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+
+# Node.js and Yarn, from the "nodejs" variable of castor.php: its version, or none
+# (empty NODEJS_VERSION). Yarn is the version of the "packageManager" of package.json, or
+# the stable one. Corepack keeps them out of $HOME, which the containers mount from the
+# host: writable by the host user, to download the version of a project
+ARG NODEJS_VERSION=24.x
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+ENV COREPACK_HOME=/usr/local/share/corepack
+RUN if [ -n "${NODEJS_VERSION}" ]; then \
+        curl -s https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg \
+        && echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODEJS_VERSION} nodistro main" > /etc/apt/sources.list.d/nodesource.list \
+        && apt-get update \
+        && apt-get install -y --no-install-recommends \
+            "nodejs" \
+        && apt-get clean \
+        && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/* \
+        && corepack enable \
+        && corepack prepare yarn@stable --activate \
+        && chmod -R a+rwX "${COREPACK_HOME}"; \
+    fi
 
 # Install a fake sudo command
 # The real `sudo` refuses to work because the container runs as the host's

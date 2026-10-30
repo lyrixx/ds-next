@@ -14,6 +14,7 @@
   * Add the `http_port` variable, the port of the `prod` context
   * The `prod` context picks the optional `docker-compose.prod.override.yml` file
   * Add the `php_extensions` variable, to install PHP extensions without editing the Dockerfile
+  * Add the `nodejs` variable, to pick the version of Node.js, or not to install it
   * Add `castor test:starter` to test the castor tasks shared with the projects
 * Services
   * Upgrade Traefik from v2.7 to v3.0

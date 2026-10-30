@@ -23,7 +23,7 @@ guard_min_version('1.9.0');
 import(__DIR__ . '/.castor');
 
 /**
- * The other variables (http_port, php_extensions...) are optional, see the README.
+ * The other variables (http_port, php_extensions, nodejs...) are optional, see the README.
  *
  * @return array{
  *     project_name: string,
@@ -34,6 +34,7 @@ import(__DIR__ . '/.castor');
  *     registry: ?string,
  *     http_port?: int,
  *     php_extensions?: list<string>,
+ *     nodejs?: bool|int|string,
  * }
  */
 function create_default_variables(): array

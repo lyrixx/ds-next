@@ -106,10 +106,18 @@ function get_starter_test_cases(): array
 
             $result = dump_project($project, [
                 'php_extensions' => ['imagick', 'redis'],
+                'nodejs' => false,
             ]);
             assert_same(array_replace($default, [
                 'PHP_EXTENSIONS' => 'imagick redis',
+                'NODEJS_VERSION' => '',
             ]), $result['build_args'], 'variables');
+        },
+
+        'The version of Node.js is configurable' => static function (string $project): void {
+            assert_same('22.x', dump_project($project, ['nodejs' => '22'])['build_args']['NODEJS_VERSION'], 'major version');
+            assert_same('22.x', dump_project($project, ['nodejs' => 22])['build_args']['NODEJS_VERSION'], 'major version as an int');
+            assert_same('22.x', dump_project($project, ['nodejs' => '22.x'])['build_args']['NODEJS_VERSION'], 'NodeSource version');
         },
 
         'The prod context runs a dedicated stack' => static function (string $project): void {
