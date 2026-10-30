@@ -181,6 +181,9 @@ We suggest to:
 > Relative symlinks works here, because the first part of the command is relative to the second part, not to the current directory.
 
 Since `tools/bin` path is appended to the `$PATH`, tools will be available globally in the builder container.
+`castor qa:install` and `castor qa:update` install and update every tool of
+`tools/`, yours included (e.g. Rector in `tools/rector/`): add the task that runs it
+to `castor.php`.
 
 </details>
 

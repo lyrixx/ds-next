@@ -29,9 +29,9 @@ function install(): void
 {
     io()->title('Installing QA tooling');
 
-    docker_compose_run(['composer', 'install', '-o'], workDir: '/var/www/tools/php-cs-fixer');
-    docker_compose_run(['composer', 'install', '-o'], workDir: '/var/www/tools/phpstan');
-    docker_compose_run(['composer', 'install', '-o'], workDir: '/var/www/tools/twig-cs-fixer');
+    foreach (get_tools() as $tool) {
+        docker_compose_run(['composer', 'install', '-o'], workDir: "/var/www/tools/{$tool}");
+    }
 }
 
 #[AsTask(description: 'Updates tooling')]
@@ -39,9 +39,22 @@ function update(): void
 {
     io()->title('Updating QA tooling');
 
-    docker_compose_run(['composer', 'update', '-o'], workDir: '/var/www/tools/php-cs-fixer');
-    docker_compose_run(['composer', 'update', '-o'], workDir: '/var/www/tools/phpstan');
-    docker_compose_run(['composer', 'update', '-o'], workDir: '/var/www/tools/twig-cs-fixer');
+    foreach (get_tools() as $tool) {
+        docker_compose_run(['composer', 'update', '-o'], workDir: "/var/www/tools/{$tool}");
+    }
+}
+
+/**
+ * The tools of tools/, those of docker-starter and those of the project (e.g. a
+ * tools/rector/composer.json): each one is a Composer project.
+ *
+ * @return list<string>
+ */
+function get_tools(): array
+{
+    $files = glob(variable('root_dir') . '/tools/*/composer.json') ?: [];
+
+    return array_map(static fn (string $file) => basename(\dirname($file)), $files);
 }
 
 /**
