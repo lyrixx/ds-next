@@ -4,6 +4,7 @@ namespace context;
 
 use Castor\Attribute\AsContext;
 use Castor\Context;
+use Castor\Helper\PathHelper;
 use Symfony\Component\Process\Process;
 
 use function Castor\log;
@@ -17,6 +18,9 @@ function create_default_context(): Context
         'root_domain' => 'app.test',
         'extra_domains' => [],
         'php_version' => '8.5',
+        // Directory of the application, relative to the repository root ('' when the
+        // application lives at the root of the repository)
+        'app_dir' => 'application',
         'docker_compose_files' => [
             'docker-compose.yml',
             'docker-compose.dev.yml',
@@ -28,12 +32,14 @@ function create_default_context(): Context
         'power_shell' => false,
         // check if posix_geteuid is available, if not, use getmyuid (windows)
         'user_id' => \function_exists('posix_geteuid') ? posix_geteuid() : getmyuid(),
-        'root_dir' => \dirname(__DIR__),
+        'root_dir' => PathHelper::getRoot(),
     ];
 
     if (file_exists($data['root_dir'] . '/infrastructure/docker/docker-compose.override.yml')) {
         $data['docker_compose_files'][] = 'docker-compose.override.yml';
     }
+
+    $data['app_dir'] = trim($data['app_dir'], '/');
 
     $platform = strtolower(php_uname('s'));
     if (str_contains($platform, 'darwin')) {

@@ -49,7 +49,7 @@ Without option, the `default` context applies.
 
 ## Stack
 
-- Symfony in `application/` (docroot = `application/public`)
+- Symfony in `application/` (docroot = `application/public`), see the `app_dir` variable in `castor.php`
 - PostgreSQL 16: user/pass/db = `app`/`app`, DATABASE_URL already configured
 - nginx + php-fpm (service `frontend`), Traefik router, HTTPS on `<root_domain>` (see `castor.php`)
 - Node/yarn only inside the `builder` container

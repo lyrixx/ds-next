@@ -11,9 +11,11 @@
 x-php-build: &php-build
     context: services/php
     additional_contexts:
-        app: ../../application
+        # APP_DIR is empty when the application lives at the root of the repository
+        app: "../../${APP_DIR-application}"
     args:
         PHP_VERSION: "${PHP_VERSION:-8.5}"
+        APP_PATH: "${APP_PATH:-/var/www/application}"
 
 x-app-env: &app-env
     APP_SECRET: "${APP_SECRET:-not-a-secret}"
@@ -49,7 +51,7 @@ services:
         env_file:
             # Optional, gitignored: real credentials for a local test.
             # Variables of the "environment" block above take precedence.
-            - path: ../../application/.env.prod.local
+            - path: "../../${APP_DIR-application}/.env.prod.local"
               required: false
         volumes:
             - php-socket:/var/run/php

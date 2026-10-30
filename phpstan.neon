@@ -22,6 +22,7 @@ parameters:
                 root_domain: string,
                 extra_domains: string[],
                 php_version: string,
+                app_dir: string,
                 docker_compose_files: list<string>,
                 docker_compose_run_environment: list<string>,
                 docker_compose_run_service: string,

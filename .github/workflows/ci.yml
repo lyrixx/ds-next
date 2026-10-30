@@ -41,6 +41,76 @@ jobs:
               with:
                   dockerfile: infrastructure/docker/services/php/Dockerfile
 
+    # >>> docker-starter only
+    castor-tasks:
+        name: Test the shared castor tasks
+        runs-on: ubuntu-latest
+        steps:
+            - name: setup-castor
+              uses: castor-php/setup-castor@2a495b8c91f00be6768ad8a040ba8634c797d386 # v1.1.0
+
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                persist-credentials: false
+
+            - name: "Run the tests"
+              run: "castor test:starter"
+
+    root-layout:
+        name: Test with the application at the repository root
+        runs-on: ubuntu-latest
+        env:
+            DS_APP_DIR: ""
+        steps:
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+            - name: Log in to registry
+              shell: bash
+              run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+            - name: setup-castor
+              uses: castor-php/setup-castor@2a495b8c91f00be6768ad8a040ba8634c797d386 # v1.1.0
+
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                persist-credentials: false
+
+            - name: "Move the application to the repository root"
+              run: |
+                  set -e
+                  shopt -s dotglob
+                  mv application/* .
+                  rmdir application
+                  printf '%s\n' .castor .github .home infrastructure tools >> .dockerignore
+
+            - name: "Build and start the infrastructure"
+              run: "castor start"
+
+            - name: "Test HTTP server"
+              run: |
+                  set -e
+                  set -o pipefail
+
+                  curl --fail --insecure --silent --retry 5 --retry-all-errors -H "Host: app.test" https://127.0.0.1 | grep "Hello world"
+
+            - name: "Test builder"
+              run: "castor builder -- pwd | grep -x /var/www"
+
+            - name: "Build and start the production images"
+              run: "castor start"
+              env:
+                  CASTOR_CONTEXT: prod
+
+            - name: "Test production HTTP server"
+              run: |
+                  set -e
+                  set -o pipefail
+
+                  curl --fail --silent --retry 5 --retry-all-errors http://127.0.0.1:8000 | grep "Environment: prod"
+                  CASTOR_CONTEXT=prod castor builder -- pwd | grep -x /var/www
+
+    # <<< docker-starter only
     prod-images:
         name: Test production images
         runs-on: ubuntu-latest

@@ -1,5 +1,9 @@
 # hadolint global ignore=DL3008
 
+# Where the application lives in the containers: /var/www is the repository root,
+# and the application may live in a sub directory (see "app_dir" in .castor/context.php)
+ARG APP_PATH=/var/www/application
+
 FROM debian:13.7-slim AS php-base
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -74,12 +78,15 @@ RUN apt-get update \
 
 RUN useradd -s /bin/false nginx
 
+ARG APP_PATH
+
 # Same php-fpm pool and nginx site as the production images (see "Production stages"), the
 # container runs as the host user so the socket directory must be writable by anyone
 COPY php/fpm/php-fpm.conf /etc/php/${PHP_VERSION}/fpm/php-fpm.conf
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY nginx/conf.d/ /etc/nginx/conf.d/
-RUN mkdir -p /var/run/php && chmod 1777 /var/run/php
+RUN sed -i "s#/var/www/application#${APP_PATH}#" /etc/nginx/conf.d/default.conf \
+    && mkdir -p /var/run/php && chmod 1777 /var/run/php
 RUN rm -rf /etc/service/
 COPY runit/ /etc/service/
 RUN mkdir -p /etc/service/nginx/supervise /etc/service/php-fpm/supervise \
@@ -168,7 +175,8 @@ RUN cat >> /etc/bash.bashrc <<'EOF'
 PS1='\[\e[01;33m\]$([ "$EUID" = 0 ] && echo root || echo builder) \[\e[00;32m\]\w\[\e[0m\] '
 EOF
 
-WORKDIR /var/www/application
+ARG APP_PATH
+WORKDIR ${APP_PATH}
 
 # ------------------------- Production stages -------------------------
 #
@@ -183,7 +191,8 @@ WORKDIR /var/www/application
 # (php/ and nginx/), the production differences live in php/mods-available/app-prod.ini.
 #
 # The application source code is expected in the additional build context
-# named "app", pointing to the application directory (its .dockerignore applies):
+# named "app", pointing to the application directory (its .dockerignore applies),
+# and copied to APP_PATH:
 #   docker buildx build --build-context app=../../../../application --target php .
 #
 # Every build step only runs if the application needs it (composer.json,
@@ -247,9 +256,10 @@ RUN groupadd -g 1000 app \
     && mkdir -p /var/run/php \
     && chown app:app /var/run/php
 
-WORKDIR /var/www/application
+ARG APP_PATH
+WORKDIR ${APP_PATH}
 
-COPY --from=app-build --chown=app:app /var/www/application /var/www/application
+COPY --from=app-build --chown=app:app ${APP_PATH} ${APP_PATH}
 
 USER 1000:1000
 
@@ -260,9 +270,12 @@ CMD ["sh", "-c", "exec /usr/sbin/php-fpm${PHP_VERSION}"]
 
 FROM nginx:1.29-alpine AS nginx
 
-COPY nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf
+ARG APP_PATH
 
-COPY --from=app-build /var/www/application/public /var/www/application/public
+COPY nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf
+RUN sed -i "s#/var/www/application#${APP_PATH}#" /etc/nginx/conf.d/default.conf
+
+COPY --from=app-build ${APP_PATH}/public ${APP_PATH}/public
 
 EXPOSE 8080
 

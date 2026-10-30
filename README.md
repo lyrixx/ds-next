@@ -32,6 +32,10 @@ will be available;
 
 * `php_version` (optional, default: `8.5`): This is the PHP version installed inside the containers.
 
+* `app_dir` (optional, default: `application`): This is the directory of the
+application, relative to the root of the repository. Use `''` if the
+application lives at the root of the repository;
+
 For example:
 
 ```php
@@ -142,33 +146,44 @@ Since `tools/bin` path is appended to the `$PATH`, tools will be available globa
 <summary>Read the cookbook</summary>
 
 If you want to rename the `application` directory, or even move its content to
-the root directory, you have to edit each reference to it. Theses references
-represent each application entry point, whether it be over HTTP or CLI.
-Usually, there is three places where you need to do it:
+the root directory, set the `app_dir` variable in the `create_default_variables()`
+function of `castor.php` (`''` for the root directory), move the files, and
+rebuild the infrastructure with `castor build`:
 
-* In Nginx configuration file (shared by the dev and production images):
-  `infrastructure/docker/services/php/nginx/conf.d/default.conf`. You need
-  to update  `server.root` option to the new path. For example:
-  ```diff
-  - root /var/www/application/public;
-  + root /var/www/public;
-  ```
-* In all workers configuration file:
-  `infrastructure/docker/docker-compose.worker.yml`:
-  ```diff
-  - command: php -d memory_limit=1G /var/www/application/bin/console messenger:consume async --memory-limit=128M
-  + command: php -d memory_limit=1G /var/www/bin/console messenger:consume async --memory-limit=128M
-  ```
-* In the builder, to land in the right directory directly:
-  `infrastructure/docker/services/php/Dockerfile`:
-  ```diff
-  - WORKDIR /var/www/application
-  + WORKDIR /var/www
-  ```
-* In the production images: the `app` build context in
-  `infrastructure/docker/docker-compose.prod.yml` and the
-  `/var/www/application` paths of the "Production stages" of
-  `infrastructure/docker/services/php/Dockerfile`.
+```php
+function create_default_variables(): array
+{
+    return [
+        'project_name' => 'app',
+        'app_dir' => '',
+    ];
+}
+```
+
+Castor passes it to Docker Compose (`APP_DIR`, relative to the root of the
+repository) and to the images (`APP_PATH` build argument, the path inside the
+containers, e.g. `/var/www`): the builder lands in the right directory, nginx
+serves the right `public/` directory, and the production images embed the
+right directory.
+
+When the application lives at the root of the repository, the production
+images are built from the whole repository: add to the `.dockerignore` file of
+the application, now at the root, what is not needed at runtime and would
+otherwise end up in the images:
+
+```
+.castor
+.castor.stub.php
+.github
+.home
+.php-cs-fixer.cache
+.php-cs-fixer.php
+.twig-cs-fixer.cache
+castor.*
+infrastructure
+phpstan.neon
+tools
+```
 
 </details>
 

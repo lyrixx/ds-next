@@ -6,6 +6,7 @@ use function Castor\finder;
 use function Castor\fs;
 use function Castor\io;
 use function Castor\variable;
+use function docker\app_dir;
 use function docker\build;
 use function docker\docker_compose_run;
 
@@ -44,7 +45,7 @@ function init(): void
 #[AsTask(description: 'Install Symfony')]
 function symfony(bool $webApp = false): void
 {
-    $base = rtrim(variable('root_dir') . '/application');
+    $base = app_dir();
 
     $gitIgnore = $base . '/.gitignore';
     $gitIgnoreContent = '';
@@ -69,7 +70,7 @@ function symfony(bool $webApp = false): void
 #[AsTask(description: 'Install Sylius')]
 function sylius(): void
 {
-    $base = rtrim(variable('root_dir') . '/application');
+    $base = app_dir();
 
     $gitIgnore = $base . '/.gitignore';
     $gitIgnoreContent = '';

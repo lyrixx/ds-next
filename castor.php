@@ -6,8 +6,8 @@ use function Castor\guard_min_version;
 use function Castor\import;
 use function Castor\io;
 use function Castor\notify;
-use function Castor\variable;
 use function docker\about;
+use function docker\app_dir;
 use function docker\build;
 use function docker\docker_compose_run;
 use function docker\get_services;
@@ -23,7 +23,7 @@ guard_min_version('1.9.0');
 import(__DIR__ . '/.castor');
 
 /**
- * @return array{project_name: string, root_domain: string, extra_domains: string[], php_version: string}
+ * @return array{project_name: string, root_domain: string, extra_domains: string[], php_version: string, app_dir: string}
  */
 function create_default_variables(): array
 {
@@ -39,6 +39,7 @@ function create_default_variables(): array
         // In order to test docker stater, we need a way to pass different values.
         // You should remove the `$_SERVER` and hardcode your configuration.
         'php_version' => $_SERVER['DS_PHP_VERSION'] ?? '8.5',
+        'app_dir' => $_SERVER['DS_APP_DIR'] ?? 'application',
         // Docker requires lowercase image names, but `${{ github.repository }}`
         // (GitHub Actions) keeps the case of the owner and of the repository
         'registry' => isset($_SERVER['REGISTRY']) ? strtolower($_SERVER['REGISTRY']) : null,
@@ -74,7 +75,7 @@ function install(): void
         return;
     }
 
-    $basePath = sprintf('%s/application', variable('root_dir'));
+    $basePath = app_dir();
 
     if (is_file("{$basePath}/composer.json")) {
         io()->section('Installing PHP dependencies');

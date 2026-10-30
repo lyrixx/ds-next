@@ -112,6 +112,7 @@ function build(
         'build',
         '--build-arg', 'PHP_VERSION=' . variable('php_version'),
         '--build-arg', 'PROJECT_NAME=' . variable('project_name'),
+        '--build-arg', 'APP_PATH=' . container_app_dir(),
     ];
 
     if ($service) {
@@ -469,6 +470,8 @@ function get_compose_environment(Context $c): array
     $domains = '`' . implode('`) || Host(`', $domains) . '`';
 
     return [
+        'APP_DIR' => $c['app_dir'],
+        'APP_PATH' => container_app_dir($c),
         'PROJECT_NAME' => $c['project_name'],
         'PROJECT_ROOT_DOMAIN' => $c['root_domain'],
         'PROJECT_DOMAINS' => $domains,
@@ -635,6 +638,27 @@ function docker_exit_code(
 }
 
 /**
+ * Absolute path of the application directory on the host.
+ */
+function app_dir(?Context $c = null): string
+{
+    $c ??= context();
+
+    return rtrim($c['root_dir'] . '/' . $c['app_dir'], '/');
+}
+
+/**
+ * Path of the application directory inside the containers, where the repository is
+ * mounted (dev) or copied (production images) in /var/www.
+ */
+function container_app_dir(?Context $c = null): string
+{
+    $c ??= context();
+
+    return rtrim('/var/www/' . $c['app_dir'], '/');
+}
+
+/**
  * Whether the current stack includes the traefik router (dev), which needs SSL certificates
  * and gives the project its URLs.
  */
@@ -685,6 +709,8 @@ function push(
 
     $command[] = '--set';
     $command[] = '*.args.PHP_VERSION=' . $c['php_version'];
+    $command[] = '--set';
+    $command[] = '*.args.APP_PATH=' . container_app_dir($c);
 
     if ($dryRun) {
         $command[] = '--print';

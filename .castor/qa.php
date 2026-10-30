@@ -8,6 +8,7 @@ use Castor\Attribute\AsTask;
 
 use function Castor\io;
 use function Castor\variable;
+use function docker\app_dir;
 use function docker\docker_compose_run;
 use function docker\docker_exit_code;
 
@@ -48,7 +49,7 @@ function update(): void
 #[AsTask(description: 'Runs PHPUnit', aliases: ['phpunit'])]
 function phpunit(#[AsRawTokens] array $rawTokens = []): int
 {
-    if (!is_file(variable('root_dir') . '/application/vendor/bin/phpunit')) {
+    if (!is_file(app_dir() . '/vendor/bin/phpunit')) {
         return 0;
     }
 
@@ -79,7 +80,7 @@ function phpstan(
 #[AsTask(description: 'Runs Security audit')]
 function security_audit(): int
 {
-    $basePath = \sprintf('%s/application', variable('root_dir'));
+    $basePath = app_dir();
 
     if (is_file("{$basePath}/composer.lock")) {
         io()->text('Running Composer audit...');

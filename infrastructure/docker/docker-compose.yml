@@ -5,6 +5,7 @@ x-templates:
             context: services/php
             target: worker
         user: "${USER_ID}:${USER_ID}"
+        working_dir: "${APP_PATH:-/var/www/application}"
         environment:
             - APP_ENV
         depends_on:
@@ -64,7 +65,7 @@ services:
 
     # worker_messenger:
     #     <<: *worker_base
-    #     command: php -d memory_limit=1G /var/www/application/bin/console messenger:consume async --memory-limit=128M
+    #     command: php -d memory_limit=1G bin/console messenger:consume async --memory-limit=128M
 
     builder:
         build:
