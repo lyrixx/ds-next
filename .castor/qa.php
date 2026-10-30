@@ -112,7 +112,10 @@ function security_audit(): int
     if (is_file("{$basePath}/yarn.lock")) {
         io()->text('Running Yarn audit...');
 
-        $exitCode = docker_exit_code(['yarn', 'audit']);
+        // "yarn audit" only exists in Yarn 1: Yarn 2+ (the one of the builder) has "yarn
+        // npm audit", which only audits the direct dependencies by default
+        $yarnClassic = str_contains((string) file_get_contents("{$basePath}/yarn.lock"), '# yarn lockfile v1');
+        $exitCode = docker_exit_code($yarnClassic ? ['yarn', 'audit'] : ['yarn', 'npm', 'audit', '--all', '--recursive']);
 
         if (0 !== $exitCode) {
             return $exitCode;
