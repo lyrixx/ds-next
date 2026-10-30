@@ -63,6 +63,18 @@ RUN read -ra extensions <<< "${PHP_EXTENSIONS}" \
         fi; \
     done
 
+# The system packages of the project, in every image, from the "system_packages"
+# variable of castor.php: e.g. "imagemagick ghostscript"
+ARG SYSTEM_PACKAGES=""
+# hadolint ignore=SC3054
+RUN read -ra packages <<< "${SYSTEM_PACKAGES}" \
+    && if [ "${#packages[@]}" -gt 0 ]; then \
+        apt-get update \
+        && apt-get install -y --no-install-recommends "${packages[@]}" \
+        && apt-get clean \
+        && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*; \
+    fi
+
 # Every PHP setting of every image: each stage enables its own ones with phpenmod
 COPY php/mods-available/ /etc/php/${PHP_VERSION}/mods-available/
 
@@ -121,6 +133,18 @@ RUN apt-get update \
         "unzip" \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+
+# The system packages of the project only needed in dev, from the
+# "builder_system_packages" variable of castor.php: e.g. "mariadb-client"
+ARG BUILDER_SYSTEM_PACKAGES=""
+# hadolint ignore=SC3054
+RUN read -ra packages <<< "${BUILDER_SYSTEM_PACKAGES}" \
+    && if [ "${#packages[@]}" -gt 0 ]; then \
+        apt-get update \
+        && apt-get install -y --no-install-recommends "${packages[@]}" \
+        && apt-get clean \
+        && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*; \
+    fi
 
 # Node.js and Yarn, from the "nodejs" variable of castor.php: its version, or none
 # (empty NODEJS_VERSION). Yarn is the version of the "packageManager" of package.json, or

@@ -28,6 +28,10 @@ function create_default_context(): Context
         // Extensions installed in every image on top of those of docker-starter, by their
         // name in the Debian packages: e.g. 'imagick' for php8.5-imagick
         'php_extensions' => [],
+        // Debian packages installed in every image (e.g. 'imagemagick'), and only in the
+        // builder (e.g. 'mariadb-client')
+        'system_packages' => [],
+        'builder_system_packages' => [],
         // Node.js and Yarn in the builder: true for the version of the Dockerfile, a version
         // (e.g. '22' or '22.x'), or false for none (e.g. with the Symfony AssetMapper)
         'nodejs' => true,

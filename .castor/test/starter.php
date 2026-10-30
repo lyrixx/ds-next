@@ -98,20 +98,26 @@ function get_starter_test_cases(): array
         'The images are configured with the variables' => static function (string $project): void {
             $default = [
                 'APP_PATH' => '/var/www/application',
+                'BUILDER_SYSTEM_PACKAGES' => '',
                 'PHP_EXTENSIONS' => '',
                 'PHP_VERSION' => '8.5',
                 'PROJECT_NAME' => 'app',
+                'SYSTEM_PACKAGES' => '',
                 'WRITABLE_DIRS' => '',
             ];
             assert_same($default, dump_project($project)['build_args'], 'default');
 
             $result = dump_project($project, [
                 'php_extensions' => ['imagick', 'redis'],
+                'system_packages' => ['imagemagick', 'ghostscript'],
+                'builder_system_packages' => ['mariadb-client'],
                 'nodejs' => false,
                 'writable_dirs' => ['var/share', 'public/uploads'],
             ]);
             assert_same(array_replace($default, [
                 'PHP_EXTENSIONS' => 'imagick redis',
+                'SYSTEM_PACKAGES' => 'imagemagick ghostscript',
+                'BUILDER_SYSTEM_PACKAGES' => 'mariadb-client',
                 'WRITABLE_DIRS' => 'var/share public/uploads',
                 'NODEJS_VERSION' => '',
             ]), $result['build_args'], 'variables');

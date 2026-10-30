@@ -35,6 +35,8 @@ import(__DIR__ . '/.castor');
  *     registry: ?string,
  *     http_port?: int,
  *     php_extensions?: list<string>,
+ *     system_packages?: list<string>,
+ *     builder_system_packages?: list<string>,
  *     nodejs?: bool|int|string,
  *     writable_dirs?: list<string>,
  * }

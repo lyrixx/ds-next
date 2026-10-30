@@ -472,9 +472,11 @@ function get_build_args(Context $c): array
 {
     $args = [
         'APP_PATH' => container_app_dir($c),
+        'BUILDER_SYSTEM_PACKAGES' => implode(' ', $c['builder_system_packages']),
         'PHP_EXTENSIONS' => implode(' ', $c['php_extensions']),
         'PHP_VERSION' => $c['php_version'],
         'PROJECT_NAME' => $c['project_name'],
+        'SYSTEM_PACKAGES' => implode(' ', $c['system_packages']),
         'WRITABLE_DIRS' => implode(' ', $c['writable_dirs']),
     ];
 

@@ -50,6 +50,13 @@ keep the environment variable as an override (lowercased, as Docker requires):
 the images, on top of those of docker-starter, by their name in the Debian
 packages (e.g. `['imagick', 'redis']` installs `php8.5-imagick` and `php8.5-redis`);
 
+* `system_packages` (optional, default: `[]`): The Debian packages to install
+in every image, for the needs of the application at runtime (e.g.
+`['imagemagick', 'ghostscript']`);
+
+* `builder_system_packages` (optional, default: `[]`): The Debian packages to
+install only in the builder, for the development tools (e.g. `['mariadb-client']`);
+
 * `nodejs` (optional, default: `true`): Whether to install Node.js and Yarn in
 the builder: `true` for the version of docker-starter, a major version (e.g.
 `'22'`) to pin another one, or `false` if the application does not need them
