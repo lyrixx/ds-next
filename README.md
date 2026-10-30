@@ -99,6 +99,17 @@ Will give you `https://app.test`,  `https://www.app.test`,
 > Some castor tasks have been added for DX purposes. Checkout and adapt
 > the tasks `install`, `migrate` and `cache_clear` to your project.
 
+### The services of the project
+
+Add the services of your project, and your changes to those of docker-starter
+(environment variables, volumes...), to `infrastructure/docker/docker-compose.project.yml`,
+and to `infrastructure/docker/docker-compose.prod.project.yml` for the production
+stack, rather than to the files of docker-starter. Castor loads them after the
+files of docker-starter, and Docker Compose
+[merges them](https://docs.docker.com/compose/how-tos/multiple-compose-files/merge/).
+Unlike `docker-compose.override.yml` and `docker-compose.prod.override.yml`,
+kept for the local tweaks of each developer, they are committed.
+
 ## Git worktree support
 
 When running `castor` commands inside a [git worktree](https://git-scm.com/docs/git-worktree),
@@ -385,7 +396,7 @@ If you want to use Webpack Encore in a Symfony project,
 
 2. Create a new service for encore:
 
-    Add the following content to the `docker-compose.yml` file:
+    Add the following content to the `infrastructure/docker/docker-compose.project.yml` file:
 
     ```yaml
     services:
@@ -461,7 +472,7 @@ at https://encore.app.test and click on accept.
 <summary>Read the cookbook</summary>
 
 In order to use Elasticsearch and Kibana, you should add the following content
-to the `docker-compose.yml` file:
+to the `infrastructure/docker/docker-compose.project.yml` file:
 
 ```yaml
 volumes:
@@ -548,7 +559,7 @@ And you can add specific RabbitMQ configuration in the `services/rabbitmq/etc/ra
 vm_memory_high_watermark.absolute = 1GB
 ```
 
-Finally, add the following content to the `docker-compose.yml` file:
+Finally, add the following content to the `infrastructure/docker/docker-compose.project.yml` file:
 ```yaml
 volumes:
     rabbitmq-data: {}
@@ -598,7 +609,7 @@ For example in Symfony you can use: `MESSENGER_TRANSPORT_DSN=amqp://guest:guest@
 <summary>Read the cookbook</summary>
 
 In order to use Redis and its dashboard, you should add the following content to
-the `docker-compose.yml` file:
+the `infrastructure/docker/docker-compose.project.yml` file:
 
 ```yaml
 volumes:
@@ -653,7 +664,7 @@ In your application, you can use the following configuration:
 <summary>Read the cookbook</summary>
 
 In order to use Mailpit and its dashboard, you should add the following content
-to the `docker-compose.yml` file:
+to the `infrastructure/docker/docker-compose.project.yml` file:
 
 ```yaml
 services:
@@ -692,7 +703,7 @@ For example in Symfony you can use: `MAILER_DSN=smtp://mail:25`.
 <summary>Read the cookbook</summary>
 
 In order to use Mercure, you should add the following content to the
-`docker-compose.yml` file:
+`infrastructure/docker/docker-compose.project.yml` file:
 
 ```yaml
 services:
@@ -728,7 +739,7 @@ MERCURE_JWT_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjc
 <summary>Read the cookbook</summary>
 
 In order to use redirection.io, you should add the following content to the
-`docker-compose.yml` file to run the agent:
+`infrastructure/docker/docker-compose.project.yml` file to run the agent:
 
 ```yaml
 services:
@@ -812,7 +823,7 @@ redirectionio_project_key "AAAAAAAAAAAAAAAA:BBBBBBBBBBBBBBBB";
 <summary>Read the cookbook</summary>
 
 In order to use Blackfire.io, you should add the following content to the
-`docker-compose.yml` file to run the agent:
+`infrastructure/docker/docker-compose.project.yml` file to run the agent:
 
 ```yaml
 services:
@@ -877,7 +888,7 @@ If you want to enable Headless Chrome in your project, run the following command
 castor chrome
 ```
 
-If your project is already initialized, you can manually update the `docker-compose.dev.yml` file:
+If your project is already initialized, you can add it to the `infrastructure/docker/docker-compose.project.yml` file:
 
 ```yaml
 services:
@@ -943,7 +954,7 @@ done &
 exec "$@"
 ```
 
-Finally, add the following content to the `docker-compose.yml` file:
+Finally, add the following content to the `infrastructure/docker/docker-compose.project.yml` file:
 ```yaml
 services:
     cron:
@@ -973,17 +984,27 @@ services:
 
 <summary>Read the cookbook</summary>
 
-In order to set up workers, you should define their services in the `docker-compose.worker.yml` file:
+In order to set up workers, you should define their services in the
+`infrastructure/docker/docker-compose.project.yml` file. YAML anchors do not
+cross files, so repeat there the settings of the `worker_base` template of
+`docker-compose.yml`:
 
 ```yaml
 services:
-    worker_my_worker:
-        <<: *worker_base
-        command: /var/www/application/my-worker
-
     worker_date:
-        <<: *worker_base
+        build:
+            context: services/php
+            target: worker
+        user: "${USER_ID}:${USER_ID}"
+        working_dir: "${APP_PATH}"
+        environment:
+            - APP_ENV
+        volumes:
+            - "../..:/var/www:cached"
+            - "../../.home:/home/app:cached"
         command: watch -n 1 date
+        profiles:
+            - worker
 ```
 
 </details>

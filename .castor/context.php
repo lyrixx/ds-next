@@ -52,9 +52,10 @@ function create_default_context(): Context
         'root_dir' => PathHelper::getRoot(),
     ];
 
-    if (file_exists($data['root_dir'] . '/infrastructure/docker/docker-compose.override.yml')) {
-        $data['docker_compose_files'][] = 'docker-compose.override.yml';
-    }
+    $data['docker_compose_files'] = [
+        ...$data['docker_compose_files'],
+        ...get_existing_docker_compose_files($data['root_dir'], ['docker-compose.project.yml', 'docker-compose.override.yml']),
+    ];
 
     $data['app_dir'] = trim($data['app_dir'], '/');
 
@@ -104,11 +105,10 @@ function create_prod_context(): Context
 {
     $c = create_default_context();
 
-    $files = ['docker-compose.prod.yml'];
-    // Optional, gitignored: local tweaks of the production stack (e.g. to mount a secret)
-    if (file_exists($c['root_dir'] . '/infrastructure/docker/docker-compose.prod.override.yml')) {
-        $files[] = 'docker-compose.prod.override.yml';
-    }
+    $files = [
+        'docker-compose.prod.yml',
+        ...get_existing_docker_compose_files($c['root_dir'], ['docker-compose.prod.project.yml', 'docker-compose.prod.override.yml']),
+    ];
 
     return $c->withData(
         [
@@ -140,20 +140,22 @@ function create_ci_context(): Context
     $c = create_test_context();
 
     return $c
-        ->withData(
-            // override the default context here
-            [
-                'docker_compose_files' => [
-                    'docker-compose.yml',
-                    // Usually, the following service is not be needed in the CI
-                    'docker-compose.dev.yml',
-                    // 'docker-compose.ci.yml',
-                ],
-            ],
-            recursive: false
-        )
         ->withEnvironment([
             'COMPOSE_ANSI' => 'never',
         ])
     ;
+}
+
+/**
+ * The optional compose files of a stack, among $files (relative to infrastructure/docker/),
+ * e.g. those of the project (*.project.yml, committed), then the local tweaks of a
+ * developer (*.override.yml, gitignored, e.g. to mount a secret).
+ *
+ * @param list<string> $files
+ *
+ * @return list<string>
+ */
+function get_existing_docker_compose_files(string $rootDir, array $files): array
+{
+    return array_values(array_filter($files, static fn (string $file) => file_exists("{$rootDir}/infrastructure/docker/{$file}")));
 }

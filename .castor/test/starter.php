@@ -129,6 +129,16 @@ function get_starter_test_cases(): array
             assert_same('22.x', dump_project($project, ['nodejs' => '22.x'])['build_args']['NODEJS_VERSION'], 'NodeSource version');
         },
 
+        'The files of the project are part of the stack' => static function (string $project): void {
+            $default = ['docker-compose.yml', 'docker-compose.dev.yml'];
+            assert_same($default, dump_project($project)['data']['docker_compose_files'], 'default');
+            assert_same($default, dump_project($project, context: 'ci')['data']['docker_compose_files'], 'ci context');
+
+            fs()->dumpFile("{$project}/infrastructure/docker/docker-compose.override.yml", '');
+            fs()->dumpFile("{$project}/infrastructure/docker/docker-compose.project.yml", '');
+            assert_same([...$default, 'docker-compose.project.yml', 'docker-compose.override.yml'], dump_project($project)['data']['docker_compose_files'], 'files of the project, then local tweaks');
+        },
+
         'The prod context runs a dedicated stack' => static function (string $project): void {
             $result = dump_project($project, context: 'prod');
 
@@ -138,12 +148,13 @@ function get_starter_test_cases(): array
             assert_same('php', $result['data']['docker_compose_run_service'], 'docker_compose_run_service');
         },
 
-        'The prod context picks the optional override file' => static function (string $project): void {
+        'The prod context picks the optional files' => static function (string $project): void {
             fs()->dumpFile("{$project}/infrastructure/docker/docker-compose.prod.override.yml", '');
+            fs()->dumpFile("{$project}/infrastructure/docker/docker-compose.prod.project.yml", '');
 
             $result = dump_project($project, context: 'prod');
 
-            assert_same(['docker-compose.prod.yml', 'docker-compose.prod.override.yml'], $result['data']['docker_compose_files'], 'docker_compose_files');
+            assert_same(['docker-compose.prod.yml', 'docker-compose.prod.project.yml', 'docker-compose.prod.override.yml'], $result['data']['docker_compose_files'], 'docker_compose_files');
         },
 
         'The test context sets APP_ENV' => static function (string $project): void {

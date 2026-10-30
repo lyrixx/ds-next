@@ -13,6 +13,7 @@
   * Add the `app_dir` variable to move the application directory (or use the root of the repository)
   * Add the `http_port` variable, the port of the `prod` context
   * The `prod` context picks the optional `docker-compose.prod.override.yml` file
+  * Load the committed compose files of the project, `docker-compose.project.yml` and `docker-compose.prod.project.yml`
   * Add the `php_extensions` variable, to install PHP extensions without editing the Dockerfile
   * Add the `system_packages` and `builder_system_packages` variables, to install Debian packages without editing the Dockerfile
   * Add the `nodejs` variable, to pick the version of Node.js, or not to install it
