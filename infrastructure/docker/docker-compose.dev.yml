@@ -9,6 +9,10 @@ services:
             - "${PROJECT_HTTPS_PORT:-443}:443"
             - "${PROJECT_ADMIN_PORT:-8080}:8080"
         networks:
-            - default
+            default:
+                # The containers reach the application through the router on its root
+                # domain, as a browser does (e.g. a headless browser, a webhook)
+                aliases:
+                    - "${PROJECT_ROOT_DOMAIN}"
         profiles:
             - default

@@ -1102,18 +1102,22 @@ Let's say you have a container (`frontend`) that responds to many hostnames:
 (`builder`) that needs to call the `frontend` with a specific hostname - or with
 HTTPS. This is usually the case when you have a functional test suite.
 
-To enable this feature, you need to add `extra_hosts` to the `builder` container
-like so:
+The root domain (`app.test`) already works: it is a network alias of the router,
+which serves the application as for a browser. Add the other domains as aliases
+too, in `infrastructure/docker/docker-compose.project.yml`:
 
 ```yaml
 services:
-    builder:
-        # [...]
-        extra_hosts:
-            - "app.test:host-gateway"
-            - "api.app.test:host-gateway"
-            - "admin.app.test:host-gateway"
+    router:
+        networks:
+            default:
+                aliases:
+                    - "api.app.test"
+                    - "admin.app.test"
 ```
+
+The router serves them with the certificate of the dev stack: ignore the
+certificate errors in these calls, or trust the certificate.
 
 </details>
 
