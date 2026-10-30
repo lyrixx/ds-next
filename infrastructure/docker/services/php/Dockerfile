@@ -144,8 +144,11 @@ RUN apt-get update \
 #     && chmod +x /usr/local/bin/gosu \
 #     && chmod +x /usr/local/bin/sudo
 
-# Config
-RUN phpenmod app-default \
+# Config. The logs of app-builder.ini go to /var/log/php, writable by the host user
+# the container runs as
+RUN mkdir -p /var/log/php \
+    && chmod 777 /var/log/php \
+    && phpenmod app-default \
     && phpenmod app-builder
 
 # Composer
