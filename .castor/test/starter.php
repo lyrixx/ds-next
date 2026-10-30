@@ -78,6 +78,17 @@ function get_starter_test_cases(): array
             assert_same('/var/www/app', $result['container_app_dir'], 'container_app_dir()');
         },
 
+        'PHPUnit is looked for in the application directory' => static function (string $project): void {
+            assert_same(null, dump_project($project, ['app_dir' => ''])['phpunit_binary'], 'without PHPUnit');
+
+            fs()->dumpFile("{$project}/vendor/bin/phpunit", '');
+            assert_same('vendor/bin/phpunit', dump_project($project, ['app_dir' => ''])['phpunit_binary'], 'Composer binary');
+            assert_same(null, dump_project($project)['phpunit_binary'], 'not in the application directory');
+
+            fs()->dumpFile("{$project}/bin/phpunit", '');
+            assert_same('bin/phpunit', dump_project($project, ['app_dir' => ''])['phpunit_binary'], 'Symfony wrapper');
+        },
+
         'The prod context runs a dedicated stack' => static function (string $project): void {
             $result = dump_project($project, context: 'prod');
 
@@ -139,6 +150,7 @@ function create_test_project(): string
                 'app_dir' => docker\\app_dir(),
                 'container_app_dir' => docker\\container_app_dir(),
                 'compose_environment' => docker\\get_compose_environment(\$c),
+                'phpunit_binary' => qa\\phpunit_binary(),
             ], \\JSON_THROW_ON_ERROR));
         }
         PHP);

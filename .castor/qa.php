@@ -49,13 +49,30 @@ function update(): void
 #[AsTask(description: 'Runs PHPUnit', aliases: ['phpunit'])]
 function phpunit(#[AsRawTokens] array $rawTokens = []): int
 {
-    if (!is_file(app_dir() . '/vendor/bin/phpunit')) {
+    $binary = phpunit_binary();
+
+    if (null === $binary) {
         return 0;
     }
 
     io()->section('Running PHPUnit...');
 
-    return docker_exit_code(['vendor/bin/phpunit', ...$rawTokens]);
+    return docker_exit_code([$binary, ...$rawTokens]);
+}
+
+/**
+ * The PHPUnit binary of the application, relative to its directory: the "bin/phpunit"
+ * wrapper of the Symfony recipe when there is one, the Composer one otherwise.
+ */
+function phpunit_binary(): ?string
+{
+    foreach (['bin/phpunit', 'vendor/bin/phpunit'] as $binary) {
+        if (is_file(app_dir() . '/' . $binary)) {
+            return $binary;
+        }
+    }
+
+    return null;
 }
 
 #[AsTask(description: 'Runs PHPStan', aliases: ['phpstan'])]
