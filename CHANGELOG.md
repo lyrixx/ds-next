@@ -29,6 +29,7 @@
   * Add some PHP tooling (PHP-CS-Fixer, PHPStan, Twig-CS-Fixer)
   * Update Composer to version 2.8
   * Require a minimal patch version of PHP, to force the upgrade after a security release
+  * Add `app-project.ini`, the PHP settings of the project, in every image
 * Builder
   * Update NodeJS to version 20.x LTS
   * Add support for autocomplete (composer & symfony)

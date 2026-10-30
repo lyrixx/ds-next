@@ -112,13 +112,16 @@ RUN mkdir -p /etc/service/nginx/supervise /etc/service/php-fpm/supervise \
     && chmod 777 /etc/service/*/supervise/
 
 RUN phpenmod app-default \
-    && phpenmod -s fpm app-fpm
+    && phpenmod -s fpm app-fpm \
+    && phpenmod app-project
 
 EXPOSE 8080
 
 CMD ["runsvdir", "-P", "/etc/service"]
 
 FROM php-base AS worker
+
+RUN phpenmod app-project
 
 FROM php-base AS builder
 
@@ -182,7 +185,8 @@ RUN if [ -n "${NODEJS_VERSION}" ]; then \
 RUN mkdir -p /var/log/php \
     && chmod 777 /var/log/php \
     && phpenmod app-default \
-    && phpenmod app-builder
+    && phpenmod app-builder \
+    && phpenmod app-project
 
 # Composer
 COPY --from=composer/composer:2.10.0 /usr/bin/composer /usr/bin/composer
@@ -294,7 +298,8 @@ RUN apt-get update \
 COPY php/fpm/php-fpm.conf /etc/php/${PHP_VERSION}/fpm/php-fpm.conf
 RUN phpenmod app-default \
     && phpenmod -s fpm app-fpm \
-    && phpenmod app-prod
+    && phpenmod app-prod \
+    && phpenmod app-project
 
 RUN groupadd -g 1000 app \
     && useradd -M -u 1000 -g 1000 -s /bin/false app \

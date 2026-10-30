@@ -221,6 +221,27 @@ tools
 
 </details>
 
+### How to change the PHP settings
+
+<details>
+
+<summary>Read the cookbook</summary>
+
+Put the PHP settings of your project in
+`infrastructure/docker/services/php/php/mods-available/app-project.ini`. Every
+image loads it (dev and production), after the settings of docker-starter, and
+docker-starter never changes this file:
+
+```ini
+; priority=60
+[PHP]
+memory_limit = 1G
+```
+
+Then rebuild the images with `castor build`.
+
+</details>
+
 ### How to use MariaDB instead of PostgreSQL
 
 <details>
