@@ -13,6 +13,7 @@ x-templates:
                 condition: service_healthy
         volumes:
             - "../..:/var/www:cached"
+            - "../../.home:/home/app:cached"
         profiles:
             - worker
 
