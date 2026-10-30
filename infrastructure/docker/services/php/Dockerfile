@@ -102,8 +102,10 @@ ARG NODEJS_VERSION=24.x
 RUN curl -s https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg \
     && echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODEJS_VERSION} nodistro main" > /etc/apt/sources.list.d/nodesource.list
 
-# Default toys
+# Default toys. Corepack keeps Yarn out of $HOME, which the containers mount from the
+# host: writable by the host user, to download the version of a project
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+ENV COREPACK_HOME=/usr/local/share/corepack
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         "git" \
@@ -114,7 +116,8 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/* \
     && corepack enable \
-    && yarn set version stable
+    && corepack prepare yarn@stable --activate \
+    && chmod -R a+rwX "${COREPACK_HOME}"
 
 # Install a fake sudo command
 # The real `sudo` refuses to work because the container runs as the host's
