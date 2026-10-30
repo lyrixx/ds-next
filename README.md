@@ -262,8 +262,11 @@ the new docker-starter version, and your project:
 * the files of `application/` go to the application directory of your project
   (the `app_dir` variable);
 * only the [extensions](#extensions) of your project are updated: the task never
-  adds one (see `castor starter:add`), nor changes their files which belong to
-  your project (`docker-compose.version.yml`, the `crontab`);
+  adds one (see `castor starter:add`);
+* the files which belong to your project, but which docker-starter gives a
+  starting point (`app-project.ini`, `nginx/project.conf`, the
+  `docker-compose.version.yml` of the extensions, the `crontab`...), are created
+  when docker-starter adds them, then never changed;
 * the GitHub workflows are merged without their "docker-starter only" blocks,
   as `castor init` removed them from your project.
 
@@ -316,10 +319,16 @@ castor starter:sync [--dry-run]
 Commit the `.docker-starter.json` file with the result. The task never touches
 the files that the docker-starter version you update to lists in
 `.castor/starter/sync-default-exclude.json` (the documentation, `castor.php`,
-the application, this file itself...). Add the files of your project to leave alone to the
-`exclude` key of `.docker-starter.json`: a trailing slash excludes a whole
-directory, and shell wildcards are supported. The `repository` key allows to
-use a fork of docker-starter.
+the application, the configuration of PHP-CS-Fixer, PHPStan and Dependabot,
+this file itself...), and only creates those of
+`.castor/starter/sync-project-files.json`. Add the files of your project to
+leave alone to the `exclude` key of `.docker-starter.json`: a trailing slash
+excludes a whole directory, and shell wildcards are supported. The `repository`
+key allows to use a fork of docker-starter.
+
+If your project changes the rules of PHP-CS-Fixer, exclude `.castor/starter/`
+and `infrastructure/docker/extensions/` from them in `.php-cs-fixer.php`:
+otherwise, it rewrites the files of docker-starter, and each update conflicts.
 
 ### Update automatically, every week
 

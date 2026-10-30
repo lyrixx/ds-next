@@ -1,7 +1,10 @@
 [
     ".castor/init.php",
     ".castor/starter/sync-default-exclude.json",
+    ".castor/starter/sync-project-files.json",
     ".castor/test/",
+    ".github/dependabot.yml",
+    ".php-cs-fixer.php",
     "AGENTS.md",
     "CHANGELOG.md",
     "CONTRIBUTING.md",
@@ -12,8 +15,6 @@
     "castor.php",
     "composer.json",
     "doc/",
-    "infrastructure/docker/extensions/*/docker-compose.version.yml",
-    "infrastructure/docker/extensions/cron/crontab",
     "phpstan.neon",
     "tools/*/composer.lock"
 ]

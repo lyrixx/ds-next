@@ -26,6 +26,8 @@
   * Move PostgreSQL to an extension, and add the `mariadb`, `redis`, `rabbitmq`,
     `meilisearch`, `mailpit`, `cron` and `demo` extensions, added to a project with
     `castor starter:add` and updated by `castor starter:sync`
+  * `castor starter:sync` creates the files of the project that docker-starter adds
+    (e.g. `app-project.ini`), then never changes them
   * Add the `starter-sync` workflow, which opens a pull request every week with
     `castor starter:sync`, and the `.github/actions/setup` composite action, with
     the steps shared by the jobs of the CI

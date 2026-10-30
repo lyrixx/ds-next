@@ -95,8 +95,10 @@ After any PHP/Twig code change: `castor qa:cs --dry-run`,
 5. **In a project derived from docker-starter, change the `Dockerfile` and the
    compose files coming from docker-starter as little as possible**: each
    changed line can conflict on the next `castor starter:sync`. Use the
-   variables of `castor.php` (`php_extensions`, `nodejs`, `writable_dirs`...),
-   the extensions of docker-starter (`castor starter:add`), put the services of
+   variables of `castor.php` (`php_extensions`, `system_packages`, `nodejs`,
+   `writable_dirs`...), the extensions of docker-starter (`castor starter:add`),
+   the PHP settings of `services/php/php/mods-available/app-project.ini` and the
+   nginx directives of `services/php/nginx/project.conf`, put the services of
    the project in `infrastructure/docker/docker-compose.project.yml` (and
    `docker-compose.prod.project.yml`), and its own images in their own
    directory of `infrastructure/docker/services/`. Never change the version of a

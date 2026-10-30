@@ -53,8 +53,9 @@ function init(): void
     }
 
     fs()->remove([
-        // `castor starter:sync` reads it from docker-starter, never from the project
+        // `castor starter:sync` reads them from docker-starter, never from the project
         '.castor/starter/sync-default-exclude.json',
+        '.castor/starter/sync-project-files.json',
         '.castor/test',
         'doc/',
         'README.md',

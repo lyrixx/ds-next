@@ -39,6 +39,11 @@ const SYNC_CONFLICT_MARKER = '<<<<<<< ' . SYNC_PROJECT_LABEL;
 // the task never touches (added to the "exclude" of .docker-starter.json). A trailing
 // slash excludes a whole directory, and shell wildcards are supported.
 const SYNC_DEFAULT_EXCLUDE_FILE = '.castor/starter/sync-default-exclude.json';
+// The files which belong to the project, but which docker-starter gives a starting
+// point (e.g. the version of a service, the VCL of Varnish, app-project.ini): the task
+// creates them when docker-starter adds them, then never changes them. Same patterns as
+// the exclusions, and read from docker-starter too.
+const SYNC_PROJECT_FILES_FILE = '.castor/starter/sync-project-files.json';
 
 // The extensions of docker-starter (see the README of the demo extension): only those the
 // project has (added by `castor starter:add`) are updated
@@ -109,6 +114,7 @@ function sync(
         }
 
         $appDir = trim((string) variable('app_dir', SYNC_STARTER_APP_DIR), '/');
+        $projectFiles = sync_read_project_files($clone, $toSha);
 
         // Even with --allow-dirty: the conflicts of the previous update would be reported as
         // up to date, its "ref" being already the base of this one
@@ -131,6 +137,11 @@ function sync(
 
         foreach (sync_get_changes($clone, $fromSha, $toSha, $exclude) as [$status, $oldPath, $newPath]) {
             if (!sync_has_extension_of($oldPath, $root) && !sync_has_extension_of($newPath, $root)) {
+                continue;
+            }
+
+            // A file of the project: only created when it is new in docker-starter
+            if (sync_is_excluded($newPath, $projectFiles) && ('A' !== $status || is_file("{$root}/" . sync_map_path($newPath, $appDir)))) {
                 continue;
             }
 
@@ -501,6 +512,21 @@ function sync_read_default_exclude(string $clone, string $sha): array
     }
 
     return json_decode(sync_read_blob($clone, $sha, SYNC_DEFAULT_EXCLUDE_FILE), true, flags: JSON_THROW_ON_ERROR);
+}
+
+/**
+ * The patterns of the files of the project (see SYNC_PROJECT_FILES_FILE), none for the
+ * versions of docker-starter without this file.
+ *
+ * @return list<string>
+ */
+function sync_read_project_files(string $clone, string $sha): array
+{
+    if ('' === sync_git(['ls-tree', $sha, '--', SYNC_PROJECT_FILES_FILE], $clone)) {
+        return [];
+    }
+
+    return json_decode(sync_read_blob($clone, $sha, SYNC_PROJECT_FILES_FILE), true, flags: JSON_THROW_ON_ERROR);
 }
 
 /**

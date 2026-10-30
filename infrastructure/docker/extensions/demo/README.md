@@ -14,8 +14,9 @@ extensions of this directory, and only them. Every file is optional:
   prod`).
 - `docker-compose.version.yml`: what depends on the version of the service, in dev and
   in the production stack: its image, and the volume of its data. It belongs to the
-  project: `castor starter:sync` never changes it, so that the data of a database is
-  never lost to an upgrade nobody planned.
+  project: `castor starter:sync` creates it with the extension, then never changes it,
+  so that the data of a database is never lost to an upgrade nobody planned. Its other
+  files of the project are listed in `.castor/starter/sync-project-files.json`.
 - `extension.json`: what the extension adds to the variables of `castor.php`, for now
   `php_extensions` (e.g. `["redis"]` installs `php8.5-redis` in the images).
 - `tasks.php`: its Castor tasks, imported when the extension is there.

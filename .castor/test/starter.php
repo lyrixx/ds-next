@@ -22,6 +22,7 @@ use function starter\strip_docker_starter_only;
 
 use const starter\EXTENSIONS_DIR;
 use const starter\SYNC_DEFAULT_EXCLUDE_FILE;
+use const starter\SYNC_PROJECT_FILES_FILE;
 
 const IMPORT_LOCAL = 'local';
 const IMPORT_PACKAGE = 'package';
@@ -570,13 +571,16 @@ function get_sync_test_cases(): array
         },
 
         'The versions of the services and the crontab belong to the project' => static function (string $project): void {
-            // The real default exclusions
-            $exclude = (string) file_get_contents(variable('root_dir') . '/' . SYNC_DEFAULT_EXCLUDE_FILE);
+            // The real lists of docker-starter
+            $lists = [
+                SYNC_DEFAULT_EXCLUDE_FILE => (string) file_get_contents(variable('root_dir') . '/' . SYNC_DEFAULT_EXCLUDE_FILE),
+                SYNC_PROJECT_FILES_FILE => (string) file_get_contents(variable('root_dir') . '/' . SYNC_PROJECT_FILES_FILE),
+            ];
             $version = EXTENSIONS_DIR . '/a/docker-compose.version.yml';
             $crontab = EXTENSIONS_DIR . '/cron/crontab';
             [$starter, [$v1]] = create_fake_starter([
-                [SYNC_DEFAULT_EXCLUDE_FILE => $exclude, $version => "image: a:1\n", $crontab => "# 1\n"],
-                [SYNC_DEFAULT_EXCLUDE_FILE => $exclude, $version => "image: a:2\n", $crontab => "# 2\n"],
+                [...$lists, $version => "image: a:1\n", $crontab => "# 1\n"],
+                [...$lists, $version => "image: a:2\n", $crontab => "# 2\n"],
             ]);
             init_sync_project($project, $starter, $v1, [$version => "image: a:1\n", $crontab => "# 1\n"]);
 
@@ -585,6 +589,29 @@ function get_sync_test_cases(): array
             assert_same(0, $exitCode, "exit code\n{$output}");
             assert_same("image: a:1\n", file_get_contents("{$project}/{$version}"), 'version of the service');
             assert_same("# 1\n", file_get_contents("{$project}/{$crontab}"), 'crontab');
+        },
+
+        'The files of the project are created when docker-starter adds them, then never changed' => static function (string $project): void {
+            $lists = [SYNC_PROJECT_FILES_FILE => '["a.ini", "b.ini"]'];
+            [$starter, [$v1, $v2, $v3]] = create_fake_starter([
+                [...$lists, 'b.ini' => "b 1\n"],
+                [...$lists, 'a.ini' => "a 1\n", 'b.ini' => "b 1\n"],
+                [...$lists, 'a.ini' => "a 2\n"],
+            ]);
+            init_sync_project($project, $starter, $v1, ['b.ini' => "b of the project\n"]);
+
+            [$exitCode, $output] = run_sync($project, ["--to={$v2}"]);
+
+            assert_same(0, $exitCode, "exit code\n{$output}");
+            assert_same("a 1\n", file_get_contents("{$project}/a.ini"), 'new file of the project');
+            test_git(['add', '--all'], $project);
+            test_git(['commit', '--quiet', '-m', 'Update'], $project);
+
+            [$exitCode, $output] = run_sync($project, ["--to={$v3}"]);
+
+            assert_same(0, $exitCode, "exit code\n{$output}");
+            assert_same("a 1\n", file_get_contents("{$project}/a.ini"), 'modified in docker-starter');
+            assert_same("b of the project\n", file_get_contents("{$project}/b.ini"), 'deleted in docker-starter');
         },
 
         'starter:add copies an extension at the version of the project' => static function (string $project): void {
