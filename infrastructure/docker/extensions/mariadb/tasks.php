@@ -26,7 +26,8 @@ use function docker\docker_compose_exec;
 #[AsTask(description: 'Connect to the MariaDB database', aliases: ['mariadb'])]
 function client(#[AsArgsAfterOptionEnd] array $params = []): int
 {
-    $command = ['mariadb', '-u', 'app', '-papp', 'app'];
+    // The user and the database of the container, which a project may change
+    $command = ['sh', '-c', 'exec mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE" "$@"', 'mariadb'];
 
     if (!$params) {
         io()->title('Connecting to the MariaDB database');

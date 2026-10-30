@@ -9,6 +9,14 @@ In the application:
 DATABASE_URL="mysql://app:app@mariadb:3306/app?serverVersion=11.8.2-MariaDB&charset=utf8mb4"
 ```
 
+The user can also create the databases prefixed with `app_`, e.g. `app_test` for the
+tests: the volume gets this grant when MariaDB creates it, on its first start. On an
+older volume, run it once:
+
+```
+castor mariadb -- --user=root --password= -e "GRANT ALL PRIVILEGES ON \`app\_%\`.* TO 'app'@'%';"
+```
+
 To query the database:
 
 ```

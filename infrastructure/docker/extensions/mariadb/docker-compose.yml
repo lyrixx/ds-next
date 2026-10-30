@@ -12,6 +12,8 @@ services:
             - MARIADB_USER=app
             - MARIADB_PASSWORD=app
             - MARIADB_DATABASE=app
+        volumes:
+            - "./extensions/mariadb/initdb.d:/docker-entrypoint-initdb.d:ro"
         healthcheck:
             test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
             interval: 5s
