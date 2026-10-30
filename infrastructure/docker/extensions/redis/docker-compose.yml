@@ -1,0 +1,32 @@
+# The redis extension of docker-starter (see README.md), updated by "castor
+# starter:sync". Paths are relative to infrastructure/docker/.
+
+volumes:
+    redis-data: {}
+    redis-insight-data: {}
+
+services:
+    redis:
+        image: redis:8-alpine
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        volumes:
+            - redis-data:/data
+        profiles:
+            - default
+
+    redis-insight:
+        image: redis/redisinsight:3.8
+        volumes:
+            - redis-insight-data:/data
+        labels:
+            - "traefik.enable=true"
+            - "project-name=${PROJECT_NAME}"
+            - "traefik.http.routers.${PROJECT_NAME}-redis.rule=Host(`redis.${PROJECT_ROOT_DOMAIN}`)"
+            - "traefik.http.routers.${PROJECT_NAME}-redis.tls=true"
+            - "traefik.http.services.${PROJECT_NAME}-redis.loadbalancer.server.port=5540"
+        profiles:
+            - default

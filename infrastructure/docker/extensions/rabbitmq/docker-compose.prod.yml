@@ -1,0 +1,21 @@
+# The rabbitmq extension in the production stack (see docker-compose.yml).
+
+volumes:
+    rabbitmq-data: {}
+
+services:
+    rabbitmq:
+        hostname: rabbitmq
+        environment:
+            RABBITMQ_DEFAULT_USER: app
+            RABBITMQ_DEFAULT_PASS: app
+        healthcheck:
+            test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+            interval: 5s
+            timeout: 10s
+            retries: 10
+
+    php:
+        depends_on:
+            rabbitmq:
+                condition: service_healthy

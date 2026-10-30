@@ -40,6 +40,10 @@ const SYNC_CONFLICT_MARKER = '<<<<<<< ' . SYNC_PROJECT_LABEL;
 // slash excludes a whole directory, and shell wildcards are supported.
 const SYNC_DEFAULT_EXCLUDE_FILE = '.castor/starter/sync-default-exclude.json';
 
+// The extensions of docker-starter (see the README of the demo extension): only those the
+// project has (added by `castor starter:add`) are updated
+const EXTENSIONS_DIR = 'infrastructure/docker/extensions';
+
 // What the update of a file did to the project (or would do, in a dry run)
 const SYNC_UNCHANGED = 'unchanged';
 const SYNC_CHANGED = 'changed';
@@ -126,6 +130,10 @@ function sync(
         $configChanged = false;
 
         foreach (sync_get_changes($clone, $fromSha, $toSha, $exclude) as [$status, $oldPath, $newPath]) {
+            if (!sync_has_extension_of($oldPath, $root) && !sync_has_extension_of($newPath, $root)) {
+                continue;
+            }
+
             $result = sync_apply_change(
                 $clone,
                 $fromSha,
@@ -392,6 +400,19 @@ function sync_merge_into(string $ours, string $base, string $theirs, string $fil
     }
 
     return ["{$prefix}merged with the changes of the project", SYNC_CHANGED];
+}
+
+/**
+ * Whether the project has the extension of this file of docker-starter: always true for a
+ * file which is not part of an extension.
+ */
+function sync_has_extension_of(string $path, string $root): bool
+{
+    if (!preg_match('{^' . preg_quote(EXTENSIONS_DIR) . '/([^/]+)/}', $path, $matches)) {
+        return true;
+    }
+
+    return is_dir("{$root}/" . EXTENSIONS_DIR . "/{$matches[1]}");
 }
 
 function sync_map_path(string $path, string $appDir): string

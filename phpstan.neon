@@ -5,6 +5,7 @@ parameters:
         - application/public
         - castor.php
         - .castor/
+        - infrastructure/docker/extensions/
     scanFiles:
         - .castor.stub.php
     # scanDirectories:

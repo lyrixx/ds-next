@@ -12,6 +12,8 @@ use Symfony\Component\Process\Process;
 use function Castor\log;
 use function worktree\get_worktree_name;
 
+use const starter\EXTENSIONS_DIR;
+
 #[AsContext(default: true)]
 function create_default_context(): Context
 {
@@ -27,8 +29,8 @@ function create_default_context(): Context
         // The HTTP_PORT environment variable takes precedence.
         'http_port' => 8000,
         'registry' => null,
-        // Extensions installed in every image on top of those of docker-starter, by their
-        // name in the Debian packages: e.g. 'imagick' for php8.5-imagick
+        // Extensions installed in every image on top of those of docker-starter and of its
+        // extensions, by their name in the Debian packages: e.g. 'imagick' for php8.5-imagick
         'php_extensions' => [],
         // Debian packages installed in every image (e.g. 'imagemagick'), and only in the
         // builder (e.g. 'mariadb-client')
@@ -53,6 +55,21 @@ function create_default_context(): Context
         'user_id' => \function_exists('posix_geteuid') ? posix_geteuid() : getmyuid(),
         'root_dir' => PathHelper::getRoot(),
     ];
+
+    // The extensions of the project (see the README of the demo extension), whatever the
+    // variables of castor.php say: they add their compose files and their PHP extensions
+    $data['extensions'] = get_extensions($data['root_dir']);
+    foreach ($data['extensions'] as $extension) {
+        $data['docker_compose_files'] = [
+            ...$data['docker_compose_files'],
+            ...get_existing_docker_compose_files($data['root_dir'], [
+                "extensions/{$extension}/docker-compose.yml",
+                "extensions/{$extension}/docker-compose.version.yml",
+            ]),
+        ];
+        $data['php_extensions'] = [...$data['php_extensions'], ...read_extension_manifest($data['root_dir'], $extension)['php_extensions']];
+    }
+    $data['php_extensions'] = array_values(array_unique($data['php_extensions']));
 
     $data['docker_compose_files'] = [
         ...$data['docker_compose_files'],
@@ -107,8 +124,21 @@ function create_prod_context(): Context
 {
     $c = create_default_context();
 
+    $files = ['docker-compose.prod.yml'];
+    foreach ($c['extensions'] as $extension) {
+        // Only the extensions with services in this stack: e.g. no mail catcher
+        if (get_existing_docker_compose_files($c['root_dir'], ["extensions/{$extension}/docker-compose.prod.yml"])) {
+            $files = [
+                ...$files,
+                ...get_existing_docker_compose_files($c['root_dir'], [
+                    "extensions/{$extension}/docker-compose.prod.yml",
+                    "extensions/{$extension}/docker-compose.version.yml",
+                ]),
+            ];
+        }
+    }
     $files = [
-        'docker-compose.prod.yml',
+        ...$files,
         ...get_existing_docker_compose_files($c['root_dir'], ['docker-compose.prod.project.yml', 'docker-compose.prod.override.yml']),
     ];
 
@@ -150,8 +180,9 @@ function create_ci_context(): Context
 
 /**
  * The optional compose files of a stack, among $files (relative to infrastructure/docker/),
- * e.g. those of the project (*.project.yml, committed), then the local tweaks of a
- * developer (*.override.yml, gitignored, e.g. to mount a secret).
+ * e.g. those of the project (*.project.yml, committed, never touched by "castor
+ * starter:sync"), then the local tweaks of a developer (*.override.yml, gitignored, e.g. to
+ * mount a secret).
  *
  * @param list<string> $files
  *
@@ -160,4 +191,45 @@ function create_ci_context(): Context
 function get_existing_docker_compose_files(string $rootDir, array $files): array
 {
     return array_values(array_filter($files, static fn (string $file) => file_exists("{$rootDir}/infrastructure/docker/{$file}")));
+}
+
+/**
+ * The extensions of the project: the directories of infrastructure/docker/extensions/.
+ *
+ * @return list<string>
+ */
+function get_extensions(string $rootDir): array
+{
+    $dirs = glob("{$rootDir}/" . EXTENSIONS_DIR . '/*', GLOB_ONLYDIR) ?: [];
+
+    return array_map(basename(...), $dirs);
+}
+
+/**
+ * What an extension adds to the variables of castor.php, from its optional extension.json.
+ *
+ * @return array{php_extensions: list<string>}
+ */
+function read_extension_manifest(string $rootDir, string $extension): array
+{
+    $manifest = ['php_extensions' => []];
+    $file = "{$rootDir}/" . EXTENSIONS_DIR . "/{$extension}/extension.json";
+
+    if (!is_file($file)) {
+        return $manifest;
+    }
+
+    $data = json_decode((string) file_get_contents($file), true, flags: JSON_THROW_ON_ERROR);
+
+    // An extension written for a newer docker-starter: its key would be silently ignored
+    if ($unknown = array_diff(array_keys($data), array_keys($manifest))) {
+        throw new \RuntimeException(\sprintf('The "%s" file has unknown keys (%s): update docker-starter with "castor starter:sync", or fix the file.', EXTENSIONS_DIR . "/{$extension}/extension.json", implode(', ', $unknown)));
+    }
+
+    $manifest = $data + $manifest;
+    if (!array_is_list($manifest['php_extensions']) || array_filter($manifest['php_extensions'], static fn ($name) => !\is_string($name))) {
+        throw new \RuntimeException(\sprintf('The "php_extensions" of the "%s" file must be a list of names, e.g. ["redis"].', EXTENSIONS_DIR . "/{$extension}/extension.json"));
+    }
+
+    return $manifest;
 }

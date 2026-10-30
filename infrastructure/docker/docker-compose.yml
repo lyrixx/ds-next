@@ -1,3 +1,8 @@
+# Shared by docker-starter with its projects, and updated by "castor starter:sync": the
+# fewer lines a project changes here, the fewer conflicts on update. So add the services of
+# the project to docker-compose.project.yml rather than here, and those of docker-starter
+# (PostgreSQL, Redis...) with its extensions, see extensions/demo/README.md.
+
 # Templates to factorize the service definitions
 x-templates:
     worker_base: &worker_base
@@ -8,36 +13,17 @@ x-templates:
         working_dir: "${APP_PATH:-/var/www/application}"
         environment:
             - APP_ENV
-        depends_on:
-            postgres:
-                condition: service_healthy
         volumes:
             - "../..:/var/www:cached"
             - "../../.home:/home/app:cached"
         profiles:
             - worker
 
-volumes:
-    postgres-data: {}
-    # # Needed if $XDG_ env vars have been overridden
-    # builder-yarn-data: {}
+# # Needed if $XDG_ env vars have been overridden
+# volumes:
+#     builder-yarn-data: {}
 
 services:
-    postgres:
-        image: postgres:16
-        environment:
-            - POSTGRES_USER=app
-            - POSTGRES_PASSWORD=app
-        volumes:
-            - postgres-data:/var/lib/postgresql/data
-        healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U app"]
-            interval: 5s
-            timeout: 5s
-            retries: 5
-        profiles:
-            - default
-
     frontend:
         build:
             context: services/php
@@ -50,9 +36,6 @@ services:
         volumes:
             - "../..:/var/www:cached"
             - "../../.home:/home/app:cached"
-        depends_on:
-            postgres:
-                condition: service_healthy
         profiles:
             - default
         labels:
@@ -94,7 +77,5 @@ services:
             # cache between builder and watcher, adapt according to the location
             # of $XDG_DATA_HOME
             # - "builder-yarn-data:/data/yarn"
-        depends_on:
-            - postgres
         profiles:
             - builder

@@ -1,0 +1,26 @@
+# The meilisearch extension of docker-starter (see README.md), updated by "castor
+# starter:sync". The image and the data volume are in docker-compose.version.yml, which
+# belongs to the project. Paths are relative to infrastructure/docker/.
+
+volumes:
+    meilisearch-data: {}
+
+services:
+    meilisearch:
+        environment:
+            # No master key, and the search preview on the dashboard
+            - MEILI_ENV=development
+            - MEILI_NO_ANALYTICS=true
+        healthcheck:
+            test: ["CMD", "curl", "--fail", "--silent", "http://localhost:7700/health"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        labels:
+            - "traefik.enable=true"
+            - "project-name=${PROJECT_NAME}"
+            - "traefik.http.routers.${PROJECT_NAME}-meilisearch.rule=Host(`meilisearch.${PROJECT_ROOT_DOMAIN}`)"
+            - "traefik.http.routers.${PROJECT_NAME}-meilisearch.tls=true"
+            - "traefik.http.services.${PROJECT_NAME}-meilisearch.loadbalancer.server.port=7700"
+        profiles:
+            - default

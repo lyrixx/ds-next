@@ -1,0 +1,24 @@
+# The mariadb extension in the production stack (see docker-compose.yml).
+
+volumes:
+    mariadb-data: {}
+
+services:
+    mariadb:
+        environment:
+            MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
+            MARIADB_USER: app
+            MARIADB_PASSWORD: app
+            MARIADB_DATABASE: app
+        healthcheck:
+            test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    php:
+        environment:
+            DATABASE_URL: "mysql://app:app@mariadb:3306/app?charset=utf8mb4"
+        depends_on:
+            mariadb:
+                condition: service_healthy

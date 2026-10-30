@@ -12,6 +12,8 @@
     "castor.php",
     "composer.json",
     "doc/",
+    "infrastructure/docker/extensions/*/docker-compose.version.yml",
+    "infrastructure/docker/extensions/cron/crontab",
     "phpstan.neon",
     "tools/*/composer.lock"
 ]

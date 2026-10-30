@@ -20,6 +20,7 @@ use function Castor\variable;
 use function starter\has_docker_starter_only_parts;
 use function starter\strip_docker_starter_only;
 
+use const starter\EXTENSIONS_DIR;
 use const starter\SYNC_DEFAULT_EXCLUDE_FILE;
 
 const IMPORT_LOCAL = 'local';
@@ -73,11 +74,9 @@ function get_starter_test_cases(): array
 {
     return [
         'The shared tasks are available' => static function (string $project): void {
-            $output = capture(['castor', 'list', '--format=json'], context: context()->withWorkingDirectory($project)->withEnvironment(['CASTOR_CONTEXT' => false]));
-            $lines = explode("\n", trim($output));
-            $commands = array_column(json_decode((string) end($lines), true, flags: JSON_THROW_ON_ERROR)['commands'], 'name');
+            $commands = list_castor_commands($project);
 
-            foreach (['docker:build', 'docker:push', 'qa:all', 'qa:phpunit', 'postgres:client', 'docker:ports'] as $command) {
+            foreach (['docker:build', 'docker:push', 'qa:all', 'qa:phpunit', 'docker:ports', 'starter:sync', 'starter:add', 'starter:remove'] as $command) {
                 assert_same(true, \in_array($command, $commands, true), "{$command} command");
             }
         },
@@ -169,6 +168,52 @@ function get_starter_test_cases(): array
             fs()->dumpFile("{$project}/infrastructure/docker/docker-compose.override.yml", '');
             fs()->dumpFile("{$project}/infrastructure/docker/docker-compose.project.yml", '');
             assert_same([...$default, 'docker-compose.project.yml', 'docker-compose.override.yml'], dump_project($project)['data']['docker_compose_files'], 'files of the project, then local tweaks');
+        },
+
+        'The extensions are part of the stack' => static function (string $project): void {
+            $extensions = "{$project}/infrastructure/docker/extensions";
+            fs()->dumpFile("{$extensions}/a/docker-compose.yml", '');
+            fs()->dumpFile("{$extensions}/a/docker-compose.prod.yml", '');
+            fs()->dumpFile("{$extensions}/a/docker-compose.version.yml", '');
+            fs()->dumpFile("{$extensions}/a/extension.json", '{"php_extensions": ["redis", "intl"]}');
+            // No service in the production stack
+            fs()->dumpFile("{$extensions}/b/docker-compose.yml", '');
+            fs()->dumpFile("{$extensions}/b/extension.json", '{"php_extensions": ["redis"]}');
+            fs()->mkdir("{$extensions}/c");
+            fs()->dumpFile("{$project}/infrastructure/docker/docker-compose.project.yml", '');
+
+            $result = dump_project($project, ['php_extensions' => ['imagick', 'redis']]);
+
+            assert_same(['a', 'b', 'c'], $result['data']['extensions'], 'extensions');
+            assert_same(['docker-compose.yml', 'docker-compose.dev.yml', 'extensions/a/docker-compose.yml', 'extensions/a/docker-compose.version.yml', 'extensions/b/docker-compose.yml', 'docker-compose.project.yml'], $result['data']['docker_compose_files'], 'compose files');
+            assert_same('imagick redis intl', $result['build_args']['PHP_EXTENSIONS'], 'PHP extensions of the project, then of the extensions');
+            assert_same(['docker-compose.prod.yml', 'extensions/a/docker-compose.prod.yml', 'extensions/a/docker-compose.version.yml'], dump_project($project, context: 'prod')['data']['docker_compose_files'], 'compose files of the production stack');
+        },
+
+        'An unknown key of extension.json is refused' => static function (string $project): void {
+            fs()->dumpFile("{$project}/infrastructure/docker/extensions/a/extension.json", '{"php_extensions": [], "apt_packages": ["jq"]}');
+
+            [$exitCode, $output] = run_castor($project, ['test-dump']);
+
+            assert_same(true, 0 !== $exitCode, "exit code\n{$output}");
+            assert_contains('unknown keys (apt_packages)', $output);
+        },
+
+        'The tasks of the extensions are available' => static function (string $project): void {
+            fs()->dumpFile("{$project}/infrastructure/docker/extensions/a/tasks.php", <<<'PHP'
+                <?php
+
+                namespace a;
+
+                use Castor\Attribute\AsTask;
+
+                #[AsTask(namespace: 'a')]
+                function hello(): void
+                {
+                }
+                PHP);
+
+            assert_same(true, \in_array('a:hello', list_castor_commands($project), true), 'a:hello command');
         },
 
         'The prod context runs a dedicated stack' => static function (string $project): void {
@@ -351,7 +396,7 @@ function get_sync_test_cases(): array
 
             // A new project, from the files of this repository
             fs()->remove($project);
-            foreach (explode("\0", rtrim(test_git(['ls-files', '-z'], $root), "\0")) as $path) {
+            foreach (explode("\0", rtrim(test_git(['ls-files', '-z', '--cached', '--others', '--exclude-standard'], $root), "\0")) as $path) {
                 if (is_file("{$root}/{$path}")) {
                     fs()->copy("{$root}/{$path}", "{$project}/{$path}");
                 }
@@ -374,6 +419,10 @@ function get_sync_test_cases(): array
             }
 
             assert_same(false, file_exists("{$project}/" . SYNC_DEFAULT_EXCLUDE_FILE), SYNC_DEFAULT_EXCLUDE_FILE . ' is removed');
+            assert_same(['postgres'], array_map(basename(...), glob("{$project}/" . EXTENSIONS_DIR . '/*') ?: []), 'extensions of a new project');
+            // A copy of the files, not a clone of docker-starter: its version is unknown
+            assert_same(false, file_exists("{$project}/.docker-starter.json"), '.docker-starter.json');
+            assert_contains('castor starter:sync --from=<commit>', $process->getOutput());
         },
 
         'New files are created, with their mode' => static function (string $project): void {
@@ -498,6 +547,103 @@ function get_sync_test_cases(): array
             assert_same(0, $exitCode, "exit code\n{$output}");
             assert_same(false, file_exists("{$project}/old.txt"), 'old.txt is removed');
             assert_same("A\nb\nc\nd\ne\nF\n", file_get_contents("{$project}/new.txt"), 'new.txt');
+        },
+
+        'Only the extensions of the project are updated' => static function (string $project): void {
+            $a = EXTENSIONS_DIR . '/a';
+            $b = EXTENSIONS_DIR . '/b';
+            $c = EXTENSIONS_DIR . '/c';
+            [$starter, [$v1]] = create_fake_starter([
+                ["{$a}/x.yml" => "1\n", "{$b}/x.yml" => "1\n"],
+                ["{$a}/x.yml" => "2\n", "{$a}/y.yml" => "2\n", "{$b}/x.yml" => "2\n", "{$c}/x.yml" => "2\n"],
+            ]);
+            init_sync_project($project, $starter, $v1, ["{$a}/x.yml" => "1\n"]);
+
+            [$exitCode, $output] = run_sync($project);
+
+            assert_same(0, $exitCode, "exit code\n{$output}");
+            assert_same("2\n", file_get_contents("{$project}/{$a}/x.yml"), 'file of an extension of the project');
+            assert_same("2\n", file_get_contents("{$project}/{$a}/y.yml"), 'new file of an extension of the project');
+            assert_same(false, file_exists("{$project}/{$b}"), 'extension the project does not have');
+            assert_same(false, file_exists("{$project}/{$c}"), 'new extension');
+            assert_same(false, str_contains($output, 'extensions/b/'), "nothing to report about the other extensions\n{$output}");
+        },
+
+        'The versions of the services and the crontab belong to the project' => static function (string $project): void {
+            // The real default exclusions
+            $exclude = (string) file_get_contents(variable('root_dir') . '/' . SYNC_DEFAULT_EXCLUDE_FILE);
+            $version = EXTENSIONS_DIR . '/a/docker-compose.version.yml';
+            $crontab = EXTENSIONS_DIR . '/cron/crontab';
+            [$starter, [$v1]] = create_fake_starter([
+                [SYNC_DEFAULT_EXCLUDE_FILE => $exclude, $version => "image: a:1\n", $crontab => "# 1\n"],
+                [SYNC_DEFAULT_EXCLUDE_FILE => $exclude, $version => "image: a:2\n", $crontab => "# 2\n"],
+            ]);
+            init_sync_project($project, $starter, $v1, [$version => "image: a:1\n", $crontab => "# 1\n"]);
+
+            [$exitCode, $output] = run_sync($project);
+
+            assert_same(0, $exitCode, "exit code\n{$output}");
+            assert_same("image: a:1\n", file_get_contents("{$project}/{$version}"), 'version of the service');
+            assert_same("# 1\n", file_get_contents("{$project}/{$crontab}"), 'crontab');
+        },
+
+        'starter:add copies an extension at the version of the project' => static function (string $project): void {
+            $a = EXTENSIONS_DIR . '/a';
+            [$starter, [$v1]] = create_fake_starter([
+                ["{$a}/x.yml" => "1\n", "{$a}/run.sh" => "#!/bin/sh\n", EXTENSIONS_DIR . '/b/x.yml' => "1\n"],
+                ["{$a}/x.yml" => "2\n", "{$a}/run.sh" => "#!/bin/sh\n"],
+            ], executables: ["{$a}/run.sh"]);
+            init_sync_project($project, $starter, $v1, []);
+
+            [$exitCode, $output] = run_castor($project, ['starter:add', 'a']);
+
+            assert_same(0, $exitCode, "exit code\n{$output}");
+            assert_same("1\n", file_get_contents("{$project}/{$a}/x.yml"), 'the version of the project, not the last one');
+            assert_same(true, is_executable("{$project}/{$a}/run.sh"), 'mode');
+            assert_same(false, file_exists("{$project}/" . EXTENSIONS_DIR . '/b'), 'only this extension');
+
+            [$exitCode, $output] = run_castor($project, ['starter:add', 'a']);
+
+            assert_same(1, $exitCode, "exit code when the project already has it\n{$output}");
+            assert_contains('already has the "a" extension', $output);
+        },
+
+        'starter:add refuses what is not an extension of docker-starter' => static function (string $project): void {
+            [$starter, [$v1]] = create_fake_starter([[EXTENSIONS_DIR . '/a/x.yml' => "1\n", EXTENSIONS_DIR . '/b/x.yml' => "1\n"]]);
+            init_sync_project($project, $starter, $v1, []);
+
+            [$exitCode, $output] = run_castor($project, ['starter:add', 'z']);
+
+            assert_same(1, $exitCode, "exit code\n{$output}");
+            assert_contains('Its extensions: a, b.', $output);
+
+            [$exitCode, $output] = run_castor($project, ['starter:add', '../a']);
+
+            assert_same(1, $exitCode, "exit code of a path\n{$output}");
+            assert_same(false, file_exists("{$project}/infrastructure/docker/a"), 'nothing outside of the extensions');
+        },
+
+        'starter:add needs the version of the project' => static function (string $project): void {
+            [$starter] = create_fake_starter([[EXTENSIONS_DIR . '/a/x.yml' => "1\n"]]);
+            init_sync_project($project, $starter, null, []);
+
+            [$exitCode, $output] = run_castor($project, ['starter:add', 'a']);
+
+            assert_same(1, $exitCode, "exit code\n{$output}");
+            assert_contains('castor starter:sync --from=<ref>', $output);
+        },
+
+        'starter:remove removes an extension' => static function (string $project): void {
+            init_sync_project($project, '', null, [EXTENSIONS_DIR . '/a/x.yml' => "1\n"]);
+
+            [$exitCode, $output] = run_castor($project, ['starter:remove', 'a']);
+
+            assert_same(0, $exitCode, "exit code\n{$output}");
+            assert_same(false, file_exists("{$project}/" . EXTENSIONS_DIR . '/a'), 'directory of the extension');
+
+            [$exitCode, $output] = run_castor($project, ['starter:remove', 'a']);
+
+            assert_same(1, $exitCode, "exit code when the project does not have it\n{$output}");
         },
 
         'A dry run changes nothing' => static function (string $project): void {
@@ -632,11 +778,24 @@ function init_sync_project(string $project, string $starter, ?string $ref, array
  */
 function run_sync(string $project, array $args = [], array $variables = []): array
 {
-    $process = run(['castor', '--no-ansi', 'starter:sync', ...$args], context: context()
+    return run_castor($project, ['starter:sync', ...$args], $variables);
+}
+
+/**
+ * @param list<string>         $args      the task and its arguments
+ * @param array<string, mixed> $variables returned by create_default_variables()
+ *
+ * @return array{int, string} the exit code and the output
+ */
+function run_castor(string $project, array $args, array $variables = []): array
+{
+    $process = run(['castor', '--no-ansi', ...$args], context: context()
         ->withWorkingDirectory($project)
         ->withEnvironment([
             'DS_TEST_VARIABLES' => json_encode($variables, JSON_THROW_ON_ERROR),
             'CASTOR_CONTEXT' => false,
+            // Messages on one line, to check them
+            'COLUMNS' => '1000',
         ])
         ->withPty(false)
         ->withTty(false)
@@ -644,6 +803,17 @@ function run_sync(string $project, array $args = [], array $variables = []): arr
         ->withAllowFailure());
 
     return [(int) $process->getExitCode(), $process->getOutput() . $process->getErrorOutput()];
+}
+
+/**
+ * @return list<string>
+ */
+function list_castor_commands(string $project): array
+{
+    $output = capture(['castor', 'list', '--format=json'], context: context()->withWorkingDirectory($project)->withEnvironment(['CASTOR_CONTEXT' => false]));
+    $lines = explode("\n", trim($output));
+
+    return array_column(json_decode((string) end($lines), true, flags: JSON_THROW_ON_ERROR)['commands'], 'name');
 }
 
 /**

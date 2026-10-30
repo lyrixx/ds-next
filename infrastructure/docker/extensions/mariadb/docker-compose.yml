@@ -1,0 +1,30 @@
+# The mariadb extension of docker-starter (see README.md), updated by "castor
+# starter:sync". The image and the data volume are in docker-compose.version.yml, which
+# belongs to the project. Paths are relative to infrastructure/docker/.
+
+volumes:
+    mariadb-data: {}
+
+services:
+    mariadb:
+        environment:
+            - MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=1
+            - MARIADB_USER=app
+            - MARIADB_PASSWORD=app
+            - MARIADB_DATABASE=app
+        healthcheck:
+            test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+        profiles:
+            - default
+
+    frontend:
+        depends_on:
+            mariadb:
+                condition: service_healthy
+
+    builder:
+        depends_on:
+            - mariadb

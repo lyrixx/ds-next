@@ -1,6 +1,7 @@
 <?php
 
-// Shared by docker-starter with its projects: change it in docker-starter, never in a project (see index.php).
+// The tasks of the postgres extension (see README.md), imported by .castor/starter/index.php
+// and updated by "castor starter:sync".
 
 namespace postgres;
 

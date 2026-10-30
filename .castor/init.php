@@ -2,19 +2,46 @@
 
 use Castor\Attribute\AsTask;
 
+use function Castor\context;
 use function Castor\finder;
 use function Castor\fs;
 use function Castor\io;
+use function Castor\run;
 use function Castor\variable;
+use function context\get_extensions;
 use function docker\app_dir;
 use function docker\build;
 use function docker\docker_compose_run;
 use function starter\has_docker_starter_only_parts;
 use function starter\strip_docker_starter_only;
 
+use const starter\EXTENSIONS_DIR;
+use const starter\SYNC_CONFIG_FILE;
+use const starter\SYNC_DEFAULT_REPOSITORY;
+
+// The extensions of a new project: `castor starter:add` adds the others
+const INIT_DEFAULT_EXTENSIONS = ['postgres'];
+
 #[AsTask(description: 'Initialize the project')]
 function init(): void
 {
+    foreach (get_extensions(variable('root_dir')) as $extension) {
+        if (!in_array($extension, INIT_DEFAULT_EXTENSIONS, true)) {
+            fs()->remove(EXTENSIONS_DIR . "/{$extension}");
+        }
+    }
+
+    // The docker-starter version of the project, for `castor starter:sync` and `castor
+    // starter:add`: only known in a clone of docker-starter, not in a copy of its files
+    // (e.g. a repository created from the GitHub template)
+    $origin = run(['git', 'remote', 'get-url', 'origin'], context: context()->withQuiet()->withAllowFailure());
+    if ($origin->isSuccessful() && str_contains($origin->getOutput(), 'jolicode/docker-starter')) {
+        $ref = trim(run(['git', 'rev-parse', 'HEAD'], context: context()->withQuiet())->getOutput());
+        fs()->dumpFile(SYNC_CONFIG_FILE, json_encode(['repository' => SYNC_DEFAULT_REPOSITORY, 'exclude' => [], 'ref' => $ref], \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_THROW_ON_ERROR) . "\n");
+    } else {
+        io()->note(sprintf('Run "castor starter:sync --from=<commit>" with the docker-starter commit this project is created from, to record it in %s: "castor starter:sync" and "castor starter:add" need it.', SYNC_CONFIG_FILE));
+    }
+
     // The CI is kept for the project, without what only tests docker-starter itself (as
     // `castor starter:sync` will compare it, see .castor/starter/sync.php)
     foreach (finder()->files()->in('.github') as $file) {

@@ -23,6 +23,9 @@
     can be installed as a Castor remote package (`jolicode/docker-starter`)
   * Add `castor starter:sync` to update the files coming from docker-starter in
     a project (CI workflows included), with a 3-way merge
+  * Move PostgreSQL to an extension, and add the `mariadb`, `redis`, `rabbitmq`,
+    `meilisearch`, `mailpit`, `cron` and `demo` extensions, added to a project with
+    `castor starter:add` and updated by `castor starter:sync`
 * Services
   * Upgrade Traefik from v2.7 to v3.0
   * Upgrade to PostgreSQL v16

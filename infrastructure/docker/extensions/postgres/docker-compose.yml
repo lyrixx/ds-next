@@ -1,0 +1,28 @@
+# The postgres extension of docker-starter (see README.md), updated by "castor
+# starter:sync". The image and the data volume are in docker-compose.version.yml, which
+# belongs to the project. Paths are relative to infrastructure/docker/.
+
+volumes:
+    postgres-data: {}
+
+services:
+    postgres:
+        environment:
+            - POSTGRES_USER=app
+            - POSTGRES_PASSWORD=app
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U app"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        profiles:
+            - default
+
+    frontend:
+        depends_on:
+            postgres:
+                condition: service_healthy
+
+    builder:
+        depends_on:
+            - postgres

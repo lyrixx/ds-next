@@ -1,0 +1,6 @@
+# The jobs of the dev "cron" service (see README.md). They run as your user, with the
+# repository in /var/www: redirect their output to /tmp/cron.log to see it in
+# `castor logs --service=cron`. This file belongs to your project, "castor starter:sync"
+# never changes it.
+#
+# * * * * * cd /var/www/application && bin/console app:my-command > /tmp/cron.log 2>&1

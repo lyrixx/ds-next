@@ -1,5 +1,12 @@
 # hadolint global ignore=DL3008
 
+# Shared by docker-starter with its projects, and updated by "castor starter:sync": the
+# fewer lines a project changes here, the fewer conflicts on update. So configure it
+# with the variables of castor.php (php_extensions, nodejs, writable_dirs...) and the
+# extensions (castor starter:add) rather than editing it, and build the images of the
+# project with their own Dockerfile (see "How to update docker-starter in a project" in
+# the README).
+
 # Where the application lives in the containers: /var/www is the repository root,
 # and the application may live in a sub directory (see "app_dir" in .castor/starter/context.php)
 ARG APP_PATH=/var/www/application
@@ -49,7 +56,6 @@ RUN read -ra extensions <<< "${PHP_EXTENSIONS}" \
         "php${PHP_VERSION}-iconv" \
         "php${PHP_VERSION}-intl" \
         "php${PHP_VERSION}-mbstring" \
-        "php${PHP_VERSION}-pgsql" \
         "php${PHP_VERSION}-uuid" \
         "php${PHP_VERSION}-xml" \
         "php${PHP_VERSION}-zip" \
@@ -123,6 +129,20 @@ CMD ["runsvdir", "-P", "/etc/service"]
 FROM php-base AS worker
 
 RUN phpenmod app-project
+
+# Dev only, for the cron extension (infrastructure/docker/extensions/cron/), which brings
+# the entrypoint and the crontab. In production, the orchestrator runs the jobs with the
+# "php" image (see "Production stages").
+FROM php-base AS cron
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        cron \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+
+RUN phpenmod app-default \
+    && phpenmod app-project
 
 FROM php-base AS builder
 
@@ -244,7 +264,7 @@ WORKDIR ${APP_PATH}
 #   docker buildx build --build-context app=../../../../application --target php .
 #
 # Every build step only runs if the application needs it (composer.json,
-# package.json, importmap.php...), so adapt them to your project.
+# package.json, importmap.php...), so most projects can keep them as they are.
 
 FROM builder AS app-build
 

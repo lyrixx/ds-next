@@ -30,13 +30,14 @@ may need to use `castor completion > /to/somewhere`.
 
 The Docker infrastructure provides a web stack with:
  - NGINX
- - PostgreSQL
  - PHP
  - Traefik
  - A container with some tooling:
    - Composer
    - Node
    - Yarn / NPM
+ - The extensions of `infrastructure/docker/extensions/` (PostgreSQL...), see
+   the `README.md` of each one
 
 ### Domain configuration (first time only)
 

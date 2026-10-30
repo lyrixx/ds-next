@@ -1,0 +1,22 @@
+# The postgres extension in the production stack (see docker-compose.yml).
+
+volumes:
+    postgres-data: {}
+
+services:
+    postgres:
+        environment:
+            POSTGRES_USER: app
+            POSTGRES_PASSWORD: app
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U app"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+
+    php:
+        environment:
+            DATABASE_URL: "postgresql://app:app@postgres:5432/app?charset=utf8"
+        depends_on:
+            postgres:
+                condition: service_healthy

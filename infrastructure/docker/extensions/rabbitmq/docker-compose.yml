@@ -1,0 +1,27 @@
+# The rabbitmq extension of docker-starter (see README.md), updated by "castor
+# starter:sync". The image and the data volume are in docker-compose.version.yml, which
+# belongs to the project. Paths are relative to infrastructure/docker/.
+
+volumes:
+    rabbitmq-data: {}
+
+services:
+    rabbitmq:
+        # RabbitMQ names its data after the host name: it must not change
+        hostname: rabbitmq
+        environment:
+            - RABBITMQ_DEFAULT_USER=app
+            - RABBITMQ_DEFAULT_PASS=app
+        healthcheck:
+            test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+            interval: 5s
+            timeout: 10s
+            retries: 10
+        labels:
+            - "traefik.enable=true"
+            - "project-name=${PROJECT_NAME}"
+            - "traefik.http.routers.${PROJECT_NAME}-rabbitmq.rule=Host(`rabbitmq.${PROJECT_ROOT_DOMAIN}`)"
+            - "traefik.http.routers.${PROJECT_NAME}-rabbitmq.tls=true"
+            - "traefik.http.services.${PROJECT_NAME}-rabbitmq.loadbalancer.server.port=15672"
+        profiles:
+            - default

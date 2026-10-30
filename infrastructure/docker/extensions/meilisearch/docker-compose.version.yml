@@ -1,0 +1,9 @@
+# The version of Meilisearch, in dev and in the production stack. It belongs to the
+# project: "castor starter:sync" never changes this file, since a version cannot read
+# the data of another one (export a dump, or start with --experimental-dumpless-upgrade).
+
+services:
+    meilisearch:
+        image: getmeili/meilisearch:v1.56
+        volumes:
+            - meilisearch-data:/meili_data

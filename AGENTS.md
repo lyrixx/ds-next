@@ -50,7 +50,9 @@ Without option, the `default` context applies.
 ## Stack
 
 - Symfony in `application/` (docroot = `application/public`), see the `app_dir` variable in `castor.php`
-- PostgreSQL 16: user/pass/db = `app`/`app`, DATABASE_URL already configured
+- Services (PostgreSQL, Redis...) are extensions, in `infrastructure/docker/extensions/<name>/`
+  (see the `README.md` of each one): PostgreSQL 16 by default, user/pass/db = `app`/`app`.
+  Add or remove one with `castor starter:add <name>` / `castor starter:remove <name>`
 - nginx + php-fpm (service `frontend`), Traefik router, HTTPS on `<root_domain>` (see `castor.php`)
 - Node/yarn only inside the `builder` container
 - Production ships as two images (`php` and `nginx`), built from the "Production stages" of
@@ -90,5 +92,14 @@ After any PHP/Twig code change: `castor qa:cs --dry-run`,
    in `castor.php` or in other files of `.castor/`, and change a shared task
    with a Castor listener. In docker-starter itself, where these files are the
    source, run `castor test:starter` after changing them.
-5. QA tool dependencies live in `tools/<tool>/composer.json`
+5. **In a project derived from docker-starter, change the `Dockerfile` and the
+   compose files coming from docker-starter as little as possible**: each
+   changed line can conflict on the next `castor starter:sync`. Use the
+   variables of `castor.php` (`php_extensions`, `nodejs`, `writable_dirs`...),
+   the extensions of docker-starter (`castor starter:add`), put the services of
+   the project in `infrastructure/docker/docker-compose.project.yml` (and
+   `docker-compose.prod.project.yml`), and its own images in their own
+   directory of `infrastructure/docker/services/`. Never change the version of a
+   database in `docker-compose.version.yml` without a migration of its data.
+6. QA tool dependencies live in `tools/<tool>/composer.json`
    (not in `application/composer.json`).

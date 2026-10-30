@@ -47,8 +47,8 @@ keep the environment variable as an override (lowercased, as Docker requires):
 `'registry' => strtolower($_SERVER['REGISTRY'] ?? 'ghcr.io/your-organization/your-project'),`;
 
 * `php_extensions` (optional, default: `[]`): The PHP extensions to install in
-the images, on top of those of docker-starter, by their name in the Debian
-packages (e.g. `['imagick', 'redis']` installs `php8.5-imagick` and `php8.5-redis`);
+the images, on top of those of docker-starter and of its extensions, by their
+name in the Debian packages (e.g. `['imagick', 'redis']` installs `php8.5-imagick` and `php8.5-redis`);
 
 * `system_packages` (optional, default: `[]`): The Debian packages to install
 in every image, for the needs of the application at runtime (e.g.
@@ -69,6 +69,8 @@ writes in at runtime in production, relative to the application directory,
 usually the mount points of volumes (e.g. `['var/share', 'public/uploads']`):
 they belong to the application user in the `php` image, so that a volume
 inherits it when it is first created.
+
+The services (database, Redis...) come with the [extensions](#extensions).
 
 For example:
 
@@ -110,6 +112,49 @@ files of docker-starter, and Docker Compose
 Unlike `docker-compose.override.yml` and `docker-compose.prod.override.yml`,
 kept for the local tweaks of each developer, they are committed.
 
+## Extensions
+
+The services most projects need come as extensions of docker-starter: the
+directories of `infrastructure/docker/extensions/`, which Castor loads with the
+rest of the stack. A new project has `postgres`. Add or remove the others with:
+
+```bash
+castor starter:add redis
+castor starter:remove postgres
+```
+
+Then run `castor start`, to rebuild and restart the stack, and commit.
+`castor starter:add` copies the extension from the docker-starter version of
+your project (the `ref` of `.docker-starter.json`), then `castor starter:sync`
+updates it like the other files of docker-starter. `castor starter:remove`
+keeps the volumes of the extension, and their data.
+
+| Extension | What it adds |
+|---|---|
+| `postgres` | PostgreSQL, and the `pgsql` PHP extension (a new project has it) |
+| `mariadb` | MariaDB, and the `mysql` PHP extension |
+| `redis` | Redis, Redis Insight on `https://redis.<root_domain>`, and the `redis` PHP extension |
+| `rabbitmq` | RabbitMQ, its dashboard on `https://rabbitmq.<root_domain>`, and the `amqp` PHP extension |
+| `meilisearch` | Meilisearch, and its dashboard on `https://meilisearch.<root_domain>` |
+| `mailpit` | Mailpit, which catches the emails sent in dev, on `https://mailpit.<root_domain>` |
+| `cron` | A `cron` service in dev, which runs the jobs of the project |
+| `demo` | A model to write an extension |
+
+The `README.md` of each extension says what to configure in the application
+(e.g. the DSN).
+
+The version of the services which keep data (PostgreSQL, MariaDB, RabbitMQ,
+Meilisearch) is in the `docker-compose.version.yml` file of their extension. It
+belongs to your project: `castor starter:sync` never changes it, since a new
+version cannot always read the data of the previous one. Upgrade it when you
+planned the migration of the data. The `crontab` of the `cron` extension belongs
+to your project too.
+
+Your project can also have its own extensions: `castor starter:sync` never
+touches a directory that docker-starter does not have. See the
+[README of the demo extension](infrastructure/docker/extensions/demo/README.md)
+for the files of an extension.
+
 ## Git worktree support
 
 When running `castor` commands inside a [git worktree](https://git-scm.com/docs/git-worktree),
@@ -139,6 +184,10 @@ run:
 castor init
 ```
 
+It also removes the extensions but `postgres` (docker-starter runs all of them,
+to test them), and, in a clone of docker-starter, records its version in
+`.docker-starter.json`, for `castor starter:sync` and `castor starter:add`.
+
 > [!NOTE]
 > This command can be run only once
 
@@ -162,7 +211,7 @@ Castor supports completion for `bash`, `zsh` & `fish` shells.
 
 ## How to update docker-starter in a project
 
-The castor tasks shared by all the projects (`docker:*`, `qa:*`, `postgres:*`,
+The castor tasks shared by all the projects (`docker:*`, `qa:*`, `starter:*`,
 the contexts...) live in `.castor/starter/`. In your project, this directory is
 read-only, like a vendor directory: `castor starter:sync` (or `castor composer
 update`, see below) updates it, never edit it. Customize the project elsewhere:
@@ -172,6 +221,29 @@ update`, see below) updates it, never edit it. Customize the project elsewhere:
 * add your own tasks in `castor.php`, or in your own files of `.castor/`;
 * change what a shared task does with a listener (see
   [Change a shared task with a listener](#change-a-shared-task-with-a-listener)).
+
+The other files that come from docker-starter (`Dockerfile`, compose files, CI
+workflows...) can be changed, but the fewer lines your project changes in them,
+the fewer conflicts `castor starter:sync` leaves. So rather than editing them:
+
+* configure the images with the variables of `castor.php` (`php_extensions`,
+  `nodejs`, `writable_dirs`...), and add the services of docker-starter with its
+  [extensions](#extensions);
+* add the services of your project (database, search engine...), and change
+  those of docker-starter (environment variables, volumes...), in
+  `infrastructure/docker/docker-compose.project.yml`, and in
+  `infrastructure/docker/docker-compose.prod.project.yml` for the production
+  stack. Castor loads them after the files of docker-starter, Docker Compose
+  [merges them](https://docs.docker.com/compose/how-tos/multiple-compose-files/merge/),
+  and `castor starter:sync` never touches them. Unlike
+  `docker-compose.override.yml` and `docker-compose.prod.override.yml`, kept for
+  the local tweaks of each developer, they are committed;
+* build the images of your project with their own Dockerfile, in their own
+  directory of `infrastructure/docker/services/` (e.g. `build: services/grafana`
+  in `docker-compose.project.yml`).
+
+Real changes of the `Dockerfile` remain (e.g. another Debian version): keep
+them as small as possible.
 
 ### Update all the files with `castor starter:sync`
 
@@ -189,6 +261,9 @@ the new docker-starter version, and your project:
   docker-starter are deleted, unless your project modified them;
 * the files of `application/` go to the application directory of your project
   (the `app_dir` variable);
+* only the [extensions](#extensions) of your project are updated: the task never
+  adds one (see `castor starter:add`), nor changes their files which belong to
+  your project (`docker-compose.version.yml`, the `crontab`);
 * the GitHub workflows are merged without their "docker-starter only" blocks,
   as `castor init` removed them from your project.
 
@@ -419,104 +494,19 @@ Then rebuild the images with `castor build`.
 
 </details>
 
-### How to use MariaDB instead of PostgreSQL
-
-<details>
-
-<summary>Read the cookbook</summary>
-
-In order to use MariaDB, you will need to apply this patch:
-
-```diff
-diff --git a/infrastructure/docker/docker-compose.yml b/infrastructure/docker/docker-compose.yml
-index e891ada..a49a99d 100644
---- a/infrastructure/docker/docker-compose.yml
-+++ b/infrastructure/docker/docker-compose.yml
-@@ -8,7 +8,7 @@ x-templates:
-         environment:
-             - APP_ENV
-         depends_on:
--            postgres:
-+            mariadb:
-                 condition: service_healthy
-         volumes:
-             - "../..:/var/www:cached"
-@@ -16,23 +16,25 @@ x-templates:
-             - worker
-
- volumes:
--    postgres-data: {}
-+    mariadb-data: {}
-     # # Needed if $XDG_ env vars have been overridden
-     # builder-yarn-data: {}
-
- services:
--    postgres:
--        image: postgres:16
-+    mariadb:
-+        image: mariadb:12
-         environment:
--            - POSTGRES_USER=app
--            - POSTGRES_PASSWORD=app
--        volumes:
--            - postgres-data:/var/lib/postgresql/data
-+            - MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=1
-+            - MARIADB_USER=app
-+            - MARIADB_PASSWORD=app
-+            - MARIADB_DATABASE=app
-         healthcheck:
--            test: ["CMD-SHELL", "pg_isready -U postgres"]
-+            test: "mariadb-admin ping -h localhost"
-             interval: 5s
-             timeout: 5s
--            retries: 5
-+            retries: 10
-+        volumes:
-+            - mariadb-data:/var/lib/mysql
-         profiles:
-             - default
-
-@@ -49,7 +51,7 @@ services:
-             - "../..:/var/www:cached"
-             - "../../.home:/home/app:cached"
-         depends_on:
--            postgres:
-+            mariadb:
-                 condition: service_healthy
-         profiles:
-             - default
-@@ -90,6 +92,6 @@ services:
-             # of $XDG_DATA_HOME
-             # - "builder-yarn-data:/data/yarn"
-         depends_on:
--            - postgres
-+            - mariadb
-         profiles:
-             - builder
-diff --git a/infrastructure/docker/services/php/Dockerfile b/infrastructure/docker/services/php/Dockerfile
-index e9e95fd..8f00745 100644
---- a/infrastructure/docker/services/php/Dockerfile
-+++ b/infrastructure/docker/services/php/Dockerfile
-@@ -35,7 +35,7 @@ RUN apt-get update \
-         "php${PHP_VERSION}-iconv" \
-         "php${PHP_VERSION}-intl" \
-         "php${PHP_VERSION}-mbstring" \
--        "php${PHP_VERSION}-pgsql" \
-+        "php${PHP_VERSION}-mysql" \
-         "php${PHP_VERSION}-uuid" \
-         "php${PHP_VERSION}-xml" \
-         "php${PHP_VERSION}-zip" \
-```
-
-</details>
-
 ### How to use MySQL instead of PostgreSQL
 
 <details>
 
 <summary>Read the cookbook</summary>
 
-In order to use MySQL, you will need to follow the same steps as for MariaDB, but with the following configuration for the database service:
+Start from the `mariadb` [extension](#extensions): run `castor starter:add
+mariadb`, then rename `infrastructure/docker/extensions/mariadb/` to
+`infrastructure/docker/extensions/mysql/`. It becomes an extension of your
+project, which `castor starter:sync` never touches. Remove PostgreSQL with
+`castor starter:remove postgres`. In the files of `mysql/`, rename the `mariadb`
+service (and the namespace of `tasks.php`), and use the following configuration
+for the database service:
 
 ```
     mysql:
@@ -598,26 +588,11 @@ at https://encore.app.test and click on accept.
 
 1. Follow [instructions on symfony.com](https://symfony.com/doc/current/frontend/asset_mapper.html#installation) to install AssetMapper.
 
-1. Remove these lines in the `infrastructure/docker/services/php/Dockerfile` file:
+1. If the application does not need Node.js anymore, remove it from the
+   builder in `castor.php`, and rebuild it with `castor build`:
 
-    ```diff
-    SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
-    - ARG NODEJS_VERSION=18.x
-    - RUN curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | gpg --dearmor > /usr/share/keyrings/nodesource.gpg \
-    -     && echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODEJS_VERSION} bullseye main" > /etc/apt/sources.list.d/nodejs.list
-
-    # Default toys
-    RUN apt-get update \
-        && apt-get install -y --no-install-recommends \
-            git \
-            make \
-    -       nodejs \
-            sudo \
-            unzip \
-        && apt-get clean \
-    -   && npm install -g yarn@1.22 \
-        && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+    ```php
+            'nodejs' => false,
     ```
 </details>
 
@@ -691,164 +666,6 @@ If you want to install a Sylius project, you can run (before `castor init`):
 ```bash
 castor sylius
 ```
-
-</details>
-
-### How to add RabbitMQ and its dashboard
-
-<details>
-
-<summary>Read the cookbook</summary>
-
-In order to use RabbitMQ and its dashboard, you should add a new service:
-
-```Dockerfile
-# services/rabbitmq/Dockerfile
-FROM rabbitmq:3-management-alpine
-
-COPY etc/. /etc/
-```
-
-And you can add specific RabbitMQ configuration in the `services/rabbitmq/etc/rabbitmq/rabbitmq.conf` file:
-```
-# services/rabbitmq/etc/rabbitmq/rabbitmq.conf
-vm_memory_high_watermark.absolute = 1GB
-```
-
-Finally, add the following content to the `infrastructure/docker/docker-compose.project.yml` file:
-```yaml
-volumes:
-    rabbitmq-data: {}
-
-services:
-    rabbitmq:
-        build: services/rabbitmq
-        volumes:
-            - rabbitmq-data:/var/lib/rabbitmq
-        labels:
-            - "traefik.enable=true"
-            - "project-name=${PROJECT_NAME}"
-            - "traefik.http.routers.${PROJECT_NAME}-rabbitmq.rule=Host(`rabbitmq.${PROJECT_ROOT_DOMAIN}`)"
-            - "traefik.http.routers.${PROJECT_NAME}-rabbitmq.tls=true"
-            - "traefik.http.services.rabbitmq.loadbalancer.server.port=15672"
-        healthcheck:
-            test: "rabbitmqctl eval '{ true, rabbit_app_booted_and_running } = { rabbit:is_booted(node()), rabbit_app_booted_and_running }, { [], no_alarms } = { rabbit:alarms(), no_alarms }, [] /= rabbit_networking:active_listeners(), rabbitmq_node_is_healthy.' || exit 1"
-            interval: 5s
-            timeout: 5s
-            retries: 5
-        profiles:
-            - default
-```
-
-In order to publish and consume messages with PHP, you need to install the
-`php${PHP_VERSION}-amqp` in the `php` image.
-
-Then, you will be able to browse:
-
-* `https://rabbitmq.<root_domain>` (username: `guest`, password: `guest`)
-
-In your application, you can use the following configuration:
-
-* host: `rabbitmq`;
-* username: `guest`;
-* password: `guest`;
-* port: `rabbitmq`.
-
-For example in Symfony you can use: `MESSENGER_TRANSPORT_DSN=amqp://guest:guest@rabbitmq:5672/%2f/messages`.
-
-</details>
-
-### How to add Redis and its dashboard
-
-<details>
-
-<summary>Read the cookbook</summary>
-
-In order to use Redis and its dashboard, you should add the following content to
-the `infrastructure/docker/docker-compose.project.yml` file:
-
-```yaml
-volumes:
-    redis-data: {}
-    redis-insight-data: {}
-
-services:
-    redis:
-        image: redis:5
-        healthcheck:
-            test: ["CMD", "redis-cli", "ping"]
-            interval: 5s
-            timeout: 5s
-            retries: 5
-        volumes:
-            - "redis-data:/data"
-        profiles:
-            - default
-
-    redis-insight:
-        image: redislabs/redisinsight
-        volumes:
-            - "redis-insight-data:/db"
-        labels:
-            - "traefik.enable=true"
-            - "project-name=${PROJECT_NAME}"
-            - "traefik.http.routers.${PROJECT_NAME}-redis.rule=Host(`redis.${PROJECT_ROOT_DOMAIN}`)"
-            - "traefik.http.routers.${PROJECT_NAME}-redis.tls=true"
-        profiles:
-            - default
-
-```
-
-In order to communicate with Redis, you need to install the
-`php${PHP_VERSION}-redis` in the `php` image.
-
-Then, you will be able to browse:
-
-* `https://redis.<root_domain>`
-
-In your application, you can use the following configuration:
-
-* host: `redis`;
-* port: `6379`.
-
-</details>
-
-### How to add Mailpit
-
-<details>
-
-<summary>Read the cookbook</summary>
-
-In order to use Mailpit and its dashboard, you should add the following content
-to the `infrastructure/docker/docker-compose.project.yml` file:
-
-```yaml
-services:
-    mail:
-        image: axllent/mailpit
-        environment:
-            - MP_SMTP_BIND_ADDR=0.0.0.0:25
-        labels:
-            - "traefik.enable=true"
-            - "project-name=${PROJECT_NAME}"
-            - "traefik.http.routers.${PROJECT_NAME}-mail.rule=Host(`mail.${PROJECT_ROOT_DOMAIN}`)"
-            - "traefik.http.routers.${PROJECT_NAME}-mail.tls=true"
-            - "traefik.http.services.mail.loadbalancer.server.port=8025"
-        profiles:
-            - default
-```
-
-Then, you will be able to browse:
-
-* `https://mail.<root_domain>`
-
-In your application, you can use the following configuration:
-
-* scheme: `smtp`;
-* host: `mail`;
-* port: `25`.
-
-For example in Symfony you can use: `MAILER_DSN=smtp://mail:25`.
 
 </details>
 
@@ -1057,83 +874,6 @@ services:
 
 </details>
 
-### How to add support for crons?
-
-<details>
-
-<summary>Read the cookbook</summary>
-
-In order to set up crontab, you should add a new container:
-
-```Dockerfile
-# services/php/Dockerfile
-
-FROM php-base AS cron
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        cron \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
-
-COPY --link cron/crontab /etc/cron.d/crontab
-COPY --link cron/entrypoint.sh /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh"]
-
-CMD ["cron", "-f"]
-```
-
-And you can add all your crons in the `services/php/crontab` file:
-```crontab
-* * * * * php -r 'echo time().PHP_EOL;' > /tmp/cron-stdout 2>&1
-```
-
-And you can add the following content to the `services/php/entrypoint.sh` file:
-```bash
-#!/bin/bash
-set -e
-
-groupadd -g $USER_ID app
-useradd -M -u $USER_ID -g $USER_ID -s /bin/bash app
-
-crontab -u app /etc/cron.d/crontab
-
-# Wrapper for logs
-FIFO=/tmp/cron-stdout
-rm -f $FIFO
-mkfifo $FIFO
-chmod 0666 $FIFO
-while true; do
-  cat /tmp/cron-stdout
-done &
-
-exec "$@"
-```
-
-Finally, add the following content to the `infrastructure/docker/docker-compose.project.yml` file:
-```yaml
-services:
-    cron:
-        build:
-            context: services/php
-            target: cron
-            cache_from:
-                - "type=registry,ref=${REGISTRY:-}/cron:cache"
-        # depends_on:
-        #     postgres:
-        #         condition: service_healthy
-        env_file: .env
-        environment:
-            USER_ID: ${USER_ID}
-        volumes:
-            - "../..:/var/www:cached"
-            - "../../.home:/home/app:cached"
-        profiles:
-            - default
-```
-
-</details>
-
 ### How to run workers?
 
 <details>
@@ -1207,16 +947,23 @@ block:
 
 <summary>Read the cookbook</summary>
 
-In order to install pg_activity, you should add the following content to the
-`infrastructure/docker/services/postgres/Dockerfile` file:
+In order to install pg_activity, build your own PostgreSQL image: create the
+`infrastructure/docker/services/postgres/Dockerfile` file, with the version of
+PostgreSQL of your project:
 
 ```Dockerfile
+FROM postgres:16
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         pg-activity \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 ```
+
+Use it in `infrastructure/docker/extensions/postgres/docker-compose.version.yml`,
+which belongs to your project: replace `image: postgres:16` with
+`build: services/postgres`.
 
 Then, you can add the following content to the `castor.php` file:
 
@@ -1288,7 +1035,7 @@ the same time. And containers from `foo` project should be able to dialog with
 `bar` project via public network (host network).
 
 In the `foo` project, you'll need to declare the `bar_default` network in
-`docker-compose.yml`:
+`infrastructure/docker/docker-compose.project.yml`:
 
 ```yaml
 networks:

@@ -1,0 +1,18 @@
+# The cron extension of docker-starter (see README.md), updated by "castor
+# starter:sync". Paths are relative to infrastructure/docker/.
+
+services:
+    cron:
+        build:
+            context: services/php
+            target: cron
+        # From the repository, mounted below, like the crontab
+        entrypoint: ["/var/www/infrastructure/docker/extensions/cron/entrypoint.sh"]
+        command: ["cron", "-f"]
+        environment:
+            - USER_ID
+        volumes:
+            - "../..:/var/www:cached"
+            - "../../.home:/home/app:cached"
+        profiles:
+            - default

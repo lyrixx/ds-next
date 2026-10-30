@@ -1,0 +1,14 @@
+# The demo extension of docker-starter (see README.md): a model to write an extension.
+# Updated by "castor starter:sync", like the other extensions of docker-starter. Paths
+# are relative to infrastructure/docker/, like in the other compose files.
+
+services:
+    demo:
+        image: traefik/whoami:v1.12
+        labels:
+            - "traefik.enable=true"
+            - "project-name=${PROJECT_NAME}"
+            - "traefik.http.routers.${PROJECT_NAME}-demo.rule=Host(`demo.${PROJECT_ROOT_DOMAIN}`)"
+            - "traefik.http.routers.${PROJECT_NAME}-demo.tls=true"
+        profiles:
+            - default

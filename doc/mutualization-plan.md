@@ -57,6 +57,18 @@ Le but est de supprimer les écarts qui ne correspondent à aucun vrai besoin :
   > `strtolower($_SERVER['REGISTRY'] ?? 'ghcr.io/acme/app')`.
 - Résultat attendu : les `.castor/*.php` retombent à 0 ligne de diff dans les
   4 projets. C'est aussi ce qui rend l'étape 2 faisable.
+- Même chose pour le Dockerfile et les fichiers compose, que l'étape 1 fusionne :
+  chaque ligne qu'un projet y change peut entrer en conflit. Les besoins vus
+  dans au moins deux projets deviennent des variables (`php_extensions`,
+  `nodejs`, `writable_dirs`), et les services du projet vont dans ses propres
+  fichiers compose (`docker-compose.project.yml`,
+  `docker-compose.prod.project.yml`), que la synchro ne touche pas.
+- Les services courants (PostgreSQL, MariaDB, Redis, RabbitMQ, Meilisearch,
+  Mailpit, cron) deviennent des extensions : des dossiers de
+  `infrastructure/docker/extensions/`, testés dans le starter, qu'un projet
+  ajoute avec `castor starter:add` et que la synchro met à jour s'ils sont
+  présents. La version des services qui gardent des données appartient au
+  projet (`docker-compose.version.yml`, exclu de la synchro).
 
 ### Étape 1 : un outil de synchro avec merge 3-way (`castor starter:sync`)
 

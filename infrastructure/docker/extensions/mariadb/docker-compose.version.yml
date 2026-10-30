@@ -1,0 +1,9 @@
+# The version of MariaDB, in dev and in the production stack. It belongs to the project:
+# "castor starter:sync" never changes this file, since an upgrade of the data must be
+# planned (and a downgrade is not possible).
+
+services:
+    mariadb:
+        image: mariadb:11.8
+        volumes:
+            - mariadb-data:/var/lib/mysql

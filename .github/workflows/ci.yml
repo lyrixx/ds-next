@@ -254,4 +254,39 @@ jobs:
                   sleep 3
 
                   curl --fail --insecure --silent -H "Host: app.test" https://127.0.0.1 | grep "database OK"
+
+            # docker-starter has all the extensions (`castor init` only keeps postgres)
+            - name: "Test the extensions"
+              run: |
+                  set -e
+                  set -o pipefail
+
+                  cat > application/extensions.php <<'EOPHP'
+                  <?php
+                  $mariadb = new PDO('mysql:host=mariadb;dbname=app', 'app', 'app');
+                  echo 'mariadb ', $mariadb->query('SELECT 1')->fetchColumn(), "\n";
+                  $redis = new Redis();
+                  $redis->connect('redis');
+                  echo 'redis ', $redis->ping() ? 1 : 0, "\n";
+                  $rabbitmq = new AMQPConnection(['host' => 'rabbitmq', 'login' => 'app', 'password' => 'app']);
+                  $rabbitmq->connect();
+                  echo 'rabbitmq ', (int) $rabbitmq->isConnected(), "\n";
+                  echo 'meilisearch ', json_decode(file_get_contents('http://meilisearch:7700/health'), true)['status'], "\n";
+                  echo 'mailpit ', json_decode(file_get_contents('http://mailpit:8025/api/v1/info'), true)['Version'] ? 1 : 0, "\n";
+                  EOPHP
+
+                  castor builder -- php extensions.php | tee /tmp/extensions.txt
+                  grep -x "mariadb 1" /tmp/extensions.txt
+                  grep -x "redis 1" /tmp/extensions.txt
+                  grep -x "rabbitmq 1" /tmp/extensions.txt
+                  grep -x "meilisearch available" /tmp/extensions.txt
+                  grep -x "mailpit 1" /tmp/extensions.txt
+
+                  castor postgres -- "SELECT 'postgres task OK';" | grep "postgres task OK"
+                  castor mariadb -- "SELECT 'mariadb task OK';" | grep "mariadb task OK"
+                  castor demo:call | grep "Hostname"
+
+                  for host in demo mailpit meilisearch rabbitmq redis; do
+                      curl --fail --insecure --silent --output /dev/null -H "Host: ${host}.app.test" https://127.0.0.1
+                  done
             # <<< docker-starter only

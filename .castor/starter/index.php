@@ -16,13 +16,23 @@
 // variables of create_default_variables() in castor.php, add your own tasks in
 // castor.php or in the other files of .castor/, and change what a shared task does with
 // a Castor listener (see "Change a shared task with a listener" in the README of
-// docker-starter).
+// docker-starter). Its extensions (infrastructure/docker/extensions/) are added with
+// `castor starter:add`.
+
+use Castor\Helper\PathHelper;
 
 use function Castor\import;
 
+use const starter\EXTENSIONS_DIR;
+
 import(__DIR__ . '/context.php');
 import(__DIR__ . '/docker.php');
-import(__DIR__ . '/postgres.php');
+import(__DIR__ . '/extension.php');
 import(__DIR__ . '/qa.php');
 import(__DIR__ . '/sync.php');
 import(__DIR__ . '/worktree.php');
+
+// The tasks of the extensions of the project (see the README of the demo extension)
+foreach (glob(PathHelper::getRoot() . '/' . EXTENSIONS_DIR . '/*/tasks.php') ?: [] as $file) {
+    import($file);
+}

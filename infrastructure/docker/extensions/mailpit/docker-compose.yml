@@ -1,0 +1,14 @@
+# The mailpit extension of docker-starter (see README.md), updated by "castor
+# starter:sync". Paths are relative to infrastructure/docker/.
+
+services:
+    mailpit:
+        image: axllent/mailpit:v1
+        labels:
+            - "traefik.enable=true"
+            - "project-name=${PROJECT_NAME}"
+            - "traefik.http.routers.${PROJECT_NAME}-mailpit.rule=Host(`mailpit.${PROJECT_ROOT_DOMAIN}`)"
+            - "traefik.http.routers.${PROJECT_NAME}-mailpit.tls=true"
+            - "traefik.http.services.${PROJECT_NAME}-mailpit.loadbalancer.server.port=8025"
+        profiles:
+            - default

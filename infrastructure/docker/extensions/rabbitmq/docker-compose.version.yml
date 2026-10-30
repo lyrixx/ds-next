@@ -1,0 +1,9 @@
+# The version of RabbitMQ, in dev and in the production stack. It belongs to the
+# project: "castor starter:sync" never changes this file, since an upgrade of the data
+# must be planned (the feature flags of the previous version must be enabled first).
+
+services:
+    rabbitmq:
+        image: rabbitmq:4.4-management-alpine
+        volumes:
+            - rabbitmq-data:/var/lib/rabbitmq
