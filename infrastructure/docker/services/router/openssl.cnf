@@ -1,4 +1,4 @@
-# Configuration used in dev to generate a basic SSL cert
+# Configuration used in dev to generate a basic SSL cert (see generate-ssl.sh)
 [req]
 default_bits = 2048
 prompt = no
@@ -15,5 +15,5 @@ subjectAltName = @alt_names
 [dn]
 CN=app.test
 
+# The domains are added by generate-ssl.sh
 [alt_names]
-DNS.1 = app.test
