@@ -89,6 +89,12 @@ function get_starter_test_cases(): array
             assert_same('bin/phpunit', dump_project($project, ['app_dir' => ''])['phpunit_binary'], 'Symfony wrapper');
         },
 
+        'The HTTP port is configurable' => static function (string $project): void {
+            assert_same('8000', dump_project($project)['compose_environment']['HTTP_PORT'], 'default');
+            assert_same('8080', dump_project($project, ['http_port' => 8080])['compose_environment']['HTTP_PORT'], 'variable');
+            assert_same('9000', dump_project($project, ['http_port' => 8080], environment: ['HTTP_PORT' => '9000'])['compose_environment']['HTTP_PORT'], 'environment variable');
+        },
+
         'The prod context runs a dedicated stack' => static function (string $project): void {
             $result = dump_project($project, context: 'prod');
 
@@ -172,6 +178,7 @@ function dump_project(string $project, array $variables = [], string $context = 
             'DS_TEST_VARIABLES' => json_encode($variables, JSON_THROW_ON_ERROR),
             // Do not let the environment of the tests leak in the projects
             'CASTOR_CONTEXT' => false,
+            'HTTP_PORT' => false,
             ...$environment,
         ]));
 

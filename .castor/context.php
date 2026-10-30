@@ -21,6 +21,9 @@ function create_default_context(): Context
         // Directory of the application, relative to the repository root ('' when the
         // application lives at the root of the repository)
         'app_dir' => 'application',
+        // Port of the nginx container, published when there is no router (prod context).
+        // The HTTP_PORT environment variable takes precedence.
+        'http_port' => 8000,
         'docker_compose_files' => [
             'docker-compose.yml',
             'docker-compose.dev.yml',

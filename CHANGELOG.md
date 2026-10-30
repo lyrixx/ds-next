@@ -11,6 +11,7 @@
   * Add a `prod` context to build, run and push production images
   * `castor docker:push --tag=...` also pushes the images
   * Add the `app_dir` variable to move the application directory (or use the root of the repository)
+  * Add the `http_port` variable, the port of the `prod` context
   * Add `castor test:starter` to test the castor tasks shared with the projects
 * Services
   * Upgrade Traefik from v2.7 to v3.0

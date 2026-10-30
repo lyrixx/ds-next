@@ -36,6 +36,10 @@ will be available;
 application, relative to the root of the repository. Use `''` if the
 application lives at the root of the repository;
 
+* `http_port` (optional, default: `8000`): This is the port where the
+production images are available, when running them locally (`castor start -c prod`).
+The `HTTP_PORT` environment variable takes precedence;
+
 For example:
 
 ```php

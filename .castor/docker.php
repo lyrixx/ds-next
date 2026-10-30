@@ -51,7 +51,7 @@ function about(): void
     io()->section('Available URLs for this project:');
 
     if (!has_router()) {
-        io()->listing([\sprintf('http://127.0.0.1:%s', getenv('HTTP_PORT') ?: '8000')]);
+        io()->listing([\sprintf('http://127.0.0.1:%s', get_http_port())]);
 
         return;
     }
@@ -472,6 +472,7 @@ function get_compose_environment(Context $c): array
     return [
         'APP_DIR' => $c['app_dir'],
         'APP_PATH' => container_app_dir($c),
+        'HTTP_PORT' => get_http_port($c),
         'PROJECT_NAME' => $c['project_name'],
         'PROJECT_ROOT_DOMAIN' => $c['root_domain'],
         'PROJECT_DOMAINS' => $domains,
@@ -656,6 +657,16 @@ function container_app_dir(?Context $c = null): string
     $c ??= context();
 
     return rtrim('/var/www/' . $c['app_dir'], '/');
+}
+
+/**
+ * Port published by the nginx container when there is no router (prod context).
+ */
+function get_http_port(?Context $c = null): string
+{
+    $c ??= context();
+
+    return (string) (getenv('HTTP_PORT') ?: $c['http_port']);
 }
 
 /**
