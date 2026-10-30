@@ -1146,6 +1146,11 @@ It uses dummy secrets: to test with real ones, put them in an
 `application/.env.prod.local` file (ignored by git, loaded by the php
 container).
 
+To change this stack on your machine only (e.g. to mount a secret, or to
+publish another port), add an `infrastructure/docker/docker-compose.prod.override.yml`
+file (ignored by git): the `prod` context loads it after `docker-compose.prod.yml`,
+like `docker-compose.override.yml` for the development stack.
+
 `castor docker:push --tag=...` also pushes the images themselves (not only
 their build cache). On every push to `main` (and on every git tag), the
 `.github/workflows/build-push.yml` workflow pushes both images to

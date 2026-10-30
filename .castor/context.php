@@ -90,13 +90,17 @@ function create_prod_context(): Context
 {
     $c = create_default_context();
 
+    $files = ['docker-compose.prod.yml'];
+    // Optional, gitignored: local tweaks of the production stack (e.g. to mount a secret)
+    if (file_exists($c['root_dir'] . '/infrastructure/docker/docker-compose.prod.override.yml')) {
+        $files[] = 'docker-compose.prod.override.yml';
+    }
+
     return $c->withData(
         [
             // Dedicated compose project: never collides with the dev stack (containers, volumes)
             'project_name' => $c['project_name'] . '-prod',
-            'docker_compose_files' => [
-                'docker-compose.prod.yml',
-            ],
+            'docker_compose_files' => $files,
             // There is no builder service in this stack: commands run in the application image
             'docker_compose_run_service' => 'php',
         ],

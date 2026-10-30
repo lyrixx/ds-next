@@ -1,5 +1,6 @@
 /.castor.stub.php
 /infrastructure/docker/docker-compose.override.yml
+/infrastructure/docker/docker-compose.prod.override.yml
 /infrastructure/docker/services/router/certs/*.pem
 
 # Tools

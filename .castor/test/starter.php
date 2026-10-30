@@ -104,6 +104,14 @@ function get_starter_test_cases(): array
             assert_same('php', $result['data']['docker_compose_run_service'], 'docker_compose_run_service');
         },
 
+        'The prod context picks the optional override file' => static function (string $project): void {
+            fs()->dumpFile("{$project}/infrastructure/docker/docker-compose.prod.override.yml", '');
+
+            $result = dump_project($project, context: 'prod');
+
+            assert_same(['docker-compose.prod.yml', 'docker-compose.prod.override.yml'], $result['data']['docker_compose_files'], 'docker_compose_files');
+        },
+
         'The test context sets APP_ENV' => static function (string $project): void {
             assert_same('test', dump_project($project, context: 'test')['environment']['APP_ENV'] ?? null, 'APP_ENV');
         },
