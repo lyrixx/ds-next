@@ -40,6 +40,12 @@ application lives at the root of the repository;
 production images are available, when running them locally (`castor start -c prod`).
 The `HTTP_PORT` environment variable takes precedence;
 
+* `registry` (optional): This is the docker registry used to cache images
+layers and to push the production images. By default, it comes from the
+`REGISTRY` environment variable, set by the CI workflows. If you hardcode it,
+keep the environment variable as an override (lowercased, as Docker requires):
+`'registry' => strtolower($_SERVER['REGISTRY'] ?? 'ghcr.io/your-organization/your-project'),`.
+
 For example:
 
 ```php
@@ -1186,7 +1192,8 @@ function create_default_variables(): Context
 {
     return [
         // [...]
-        'registry' => 'ghcr.io/your-organization/your-project',
+        // The CI workflows override it with the REGISTRY environment variable
+        'registry' => strtolower($_SERVER['REGISTRY'] ?? 'ghcr.io/your-organization/your-project'),
     ];
 }
 ```

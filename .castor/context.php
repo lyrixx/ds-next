@@ -24,6 +24,7 @@ function create_default_context(): Context
         // Port of the nginx container, published when there is no router (prod context).
         // The HTTP_PORT environment variable takes precedence.
         'http_port' => 8000,
+        'registry' => null,
         'docker_compose_files' => [
             'docker-compose.yml',
             'docker-compose.dev.yml',
