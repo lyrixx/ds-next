@@ -78,6 +78,9 @@ services:
         user: "${USER_ID}:${USER_ID}"
         environment:
             - APP_ENV
+            # Credentials of the private Composer repositories, if any (see
+            # https://getcomposer.org/doc/03-cli.md#composer-auth)
+            - COMPOSER_AUTH
             # The following list contains the common environment variables exposed by CI platforms
             - GITHUB_ACTIONS
             - CI # Travis CI, CircleCI, Cirrus CI, Gitlab CI, Appveyor, CodeShip, dsari
