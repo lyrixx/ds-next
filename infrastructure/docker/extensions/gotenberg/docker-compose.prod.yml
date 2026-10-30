@@ -1,0 +1,10 @@
+# The gotenberg extension in the production stack (see docker-compose.yml).
+
+services:
+    gotenberg:
+        image: gotenberg/gotenberg:8
+        healthcheck:
+            test: ["CMD", "curl", "--fail", "--silent", "http://localhost:3000/health"]
+            interval: 5s
+            timeout: 5s
+            retries: 10

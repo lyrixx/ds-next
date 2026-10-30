@@ -1,0 +1,13 @@
+# The gotenberg extension of docker-starter (see README.md), updated by "castor
+# starter:sync". Paths are relative to infrastructure/docker/.
+
+services:
+    gotenberg:
+        image: gotenberg/gotenberg:8
+        healthcheck:
+            test: ["CMD", "curl", "--fail", "--silent", "http://localhost:3000/health"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+        profiles:
+            - default

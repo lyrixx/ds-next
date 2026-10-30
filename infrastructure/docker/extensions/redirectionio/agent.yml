@@ -1,0 +1,31 @@
+# The configuration of the redirection.io agent of the redirectionio extension (see
+# README.md), a reverse proxy in front of the application, in dev. Updated by "castor
+# starter:sync": the project sets its key with the REDIRECTIONIO_PROJECT_KEY variable.
+# The agent replaces the ${...} variables with those of its environment.
+instance:
+    name: "${REDIRECTIONIO_INSTANCE_NAME}"
+    # The rules are fetched again on each start
+    persist: false
+    # The traffic of the dev stack is not logged in the manager of redirection.io
+    logging: false
+
+reverse_proxy:
+    listen:
+        - "tcp://0.0.0.0:80"
+    # The headers of the router (Traefik), from a private IP: the scheme and the client
+    trusted_proxies:
+        x_forwarded_for: true
+        x_forwarded_host: true
+        x_forwarded_proto: true
+    agent:
+        project_key: "${REDIRECTIONIO_PROJECT_KEY}"
+    forward:
+        # The next hop, set by Castor: another reverse proxy (e.g. varnish), or nginx
+        address: "${REDIRECTIONIO_UPSTREAM}"
+        tls: false
+        # Otherwise, the application gets the host of the next hop, e.g. "frontend"
+        preserve_host: true
+
+log:
+    - output: stderr
+      level: info

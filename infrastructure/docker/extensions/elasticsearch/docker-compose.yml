@@ -1,0 +1,50 @@
+# The elasticsearch extension of docker-starter (see README.md), updated by "castor
+# starter:sync". The images and the data volume are in docker-compose.version.yml, which
+# belongs to the project. Paths are relative to infrastructure/docker/.
+
+volumes:
+    elasticsearch-data: {}
+
+services:
+    elasticsearch:
+        environment:
+            - discovery.type=single-node
+            # Elasticsearch takes half of the memory of the machine otherwise
+            - ES_JAVA_OPTS=-Xms512m -Xmx512m
+        healthcheck:
+            test: ["CMD", "curl", "--fail", "--silent", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=1s"]
+            interval: 5s
+            timeout: 5s
+            retries: 30
+        labels:
+            - "traefik.enable=true"
+            - "project-name=${PROJECT_NAME}"
+            - "traefik.http.routers.${PROJECT_NAME}-elasticsearch.rule=Host(`elasticsearch.${PROJECT_ROOT_DOMAIN}`)"
+            - "traefik.http.routers.${PROJECT_NAME}-elasticsearch.tls=true"
+            - "traefik.http.services.${PROJECT_NAME}-elasticsearch.loadbalancer.server.port=9200"
+        profiles:
+            - default
+
+    kibana:
+        environment:
+            - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+        depends_on:
+            elasticsearch:
+                condition: service_healthy
+        labels:
+            - "traefik.enable=true"
+            - "project-name=${PROJECT_NAME}"
+            - "traefik.http.routers.${PROJECT_NAME}-kibana.rule=Host(`kibana.${PROJECT_ROOT_DOMAIN}`)"
+            - "traefik.http.routers.${PROJECT_NAME}-kibana.tls=true"
+            - "traefik.http.services.${PROJECT_NAME}-kibana.loadbalancer.server.port=5601"
+        profiles:
+            - default
+
+    frontend:
+        depends_on:
+            elasticsearch:
+                condition: service_healthy
+
+    builder:
+        depends_on:
+            - elasticsearch

@@ -1,0 +1,44 @@
+# The clickhouse extension of docker-starter (see README.md), updated by "castor
+# starter:sync". The image and the data volume are in docker-compose.version.yml, which
+# belongs to the project. Paths are relative to infrastructure/docker/.
+
+volumes:
+    clickhouse-data: {}
+
+services:
+    clickhouse:
+        environment:
+            - CLICKHOUSE_DB=app
+            - CLICKHOUSE_USER=app
+            - CLICKHOUSE_PASSWORD=app
+            # Lets the app user create users, roles and quotas, e.g. in the migrations
+            - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+        volumes:
+            - "./extensions/clickhouse/config.xml:/etc/clickhouse-server/config.d/docker-starter.xml:ro"
+        # The limit ClickHouse asks for, it complains in its logs otherwise
+        ulimits:
+            nofile:
+                soft: 262144
+                hard: 262144
+        healthcheck:
+            test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:8123/ping"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+        labels:
+            - "traefik.enable=true"
+            - "project-name=${PROJECT_NAME}"
+            - "traefik.http.routers.${PROJECT_NAME}-clickhouse.rule=Host(`clickhouse.${PROJECT_ROOT_DOMAIN}`)"
+            - "traefik.http.routers.${PROJECT_NAME}-clickhouse.tls=true"
+            - "traefik.http.services.${PROJECT_NAME}-clickhouse.loadbalancer.server.port=8123"
+        profiles:
+            - default
+
+    frontend:
+        depends_on:
+            clickhouse:
+                condition: service_healthy
+
+    builder:
+        depends_on:
+            - clickhouse

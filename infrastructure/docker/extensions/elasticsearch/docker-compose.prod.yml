@@ -1,0 +1,26 @@
+# The elasticsearch extension in the production stack (see docker-compose.yml).
+
+volumes:
+    elasticsearch-data: {}
+
+services:
+    elasticsearch:
+        environment:
+            discovery.type: single-node
+            ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+        healthcheck:
+            test: ["CMD", "curl", "--fail", "--silent", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=1s"]
+            interval: 5s
+            timeout: 5s
+            retries: 30
+
+    # Dev only: docker-compose.version.yml, loaded in both stacks, defines its image,
+    # and a service with a profile the prod context never enables does not run
+    kibana:
+        profiles:
+            - dev
+
+    php:
+        depends_on:
+            elasticsearch:
+                condition: service_healthy

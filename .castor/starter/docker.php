@@ -501,7 +501,7 @@ function get_compose_environment(Context $c): array
     $domains = [$c['root_domain'], ...$c['extra_domains']];
     $domains = '`' . implode('`) || Host(`', $domains) . '`';
 
-    return [
+    $environment = [
         'APP_DIR' => $c['app_dir'],
         'APP_PATH' => container_app_dir($c),
         'HTTP_PORT' => get_http_port($c),
@@ -512,6 +512,18 @@ function get_compose_environment(Context $c): array
         'PHP_VERSION' => $c['php_version'],
         'REGISTRY' => $c['registry'] ?? '',
     ];
+
+    // The router sends the requests of the application to the reverse proxies of the
+    // extensions, in the order of the extensions (e.g. redirectionio, then varnish), then
+    // to nginx: each proxy forwards to the next hop, its <SERVICE>_UPSTREAM variable
+    $proxies = $c['reverse_proxies'];
+    $hops = [...array_map(static fn (array $proxy) => "{$proxy['service']}:{$proxy['port']}", $proxies), 'frontend:8080'];
+    $environment['PROJECT_HTTP_SERVICE'] = $c['project_name'] . '-' . ($proxies[0]['service'] ?? 'frontend');
+    foreach ($proxies as $i => $proxy) {
+        $environment[strtoupper(str_replace('-', '_', $proxy['service'])) . '_UPSTREAM'] = $hops[$i + 1];
+    }
+
+    return $environment;
 }
 
 /**

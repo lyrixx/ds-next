@@ -1,0 +1,16 @@
+# The version of Elasticsearch and Kibana (keep them the same), in dev and in the
+# production stack. It belongs to the project: "castor starter:sync" never changes this
+# file, since an upgrade of the data must be planned (and a downgrade is not possible).
+
+services:
+    elasticsearch:
+        image: elasticsearch:9.5.5
+        environment:
+            # No TLS nor password, as for the other services of the dev stack (the OSS
+            # images of Elasticsearch 7 refuse this setting)
+            - xpack.security.enabled=false
+        volumes:
+            - elasticsearch-data:/usr/share/elasticsearch/data
+
+    kibana:
+        image: kibana:9.5.5

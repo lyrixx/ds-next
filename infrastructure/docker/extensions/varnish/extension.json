@@ -1,0 +1,4 @@
+{
+    "php_extensions": [],
+    "reverse_proxy": {"service": "varnish", "port": 80}
+}

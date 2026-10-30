@@ -1,0 +1,20 @@
+# The varnish extension of docker-starter (see README.md), updated by "castor
+# starter:sync". The VCL, default.vcl, belongs to the project. Paths are relative to
+# infrastructure/docker/.
+
+services:
+    varnish:
+        image: varnish:9.1
+        environment:
+            - VARNISH_SIZE=256M
+        volumes:
+            - "./extensions/varnish/default.vcl:/etc/varnish/default.vcl:ro"
+        depends_on:
+            - frontend
+        # Castor routes the requests of the application here (see extension.json)
+        labels:
+            - "traefik.enable=true"
+            - "project-name=${PROJECT_NAME}"
+            - "traefik.http.services.${PROJECT_NAME}-varnish.loadbalancer.server.port=80"
+        profiles:
+            - default

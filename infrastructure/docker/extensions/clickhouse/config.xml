@@ -1,0 +1,23 @@
+<!--
+    Settings of the clickhouse extension (see README.md), on top of those of the image:
+    no system log tables, which grow without end in dev, and the server logs on the
+    console only, at the "error" level. Updated by "castor starter:sync".
+-->
+<clickhouse>
+    <asynchronous_insert_log remove="1"/>
+    <asynchronous_metric_log remove="1"/>
+    <metric_log remove="1"/>
+    <opentelemetry_span_log remove="1"/>
+    <part_log remove="1"/>
+    <processors_profile_log remove="1"/>
+    <query_log remove="1"/>
+    <query_views_log remove="1"/>
+    <trace_log remove="1"/>
+    <text_log remove="1"/>
+    <logger>
+        <level>error</level>
+        <log remove="remove"/>
+        <errorlog remove="remove"/>
+        <console>1</console>
+    </logger>
+</clickhouse>

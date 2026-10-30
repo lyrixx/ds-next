@@ -1,0 +1,27 @@
+# The mercure extension in the production stack (see docker-compose.yml): the
+# application publishes to it, but nothing routes /.well-known/mercure to it from the
+# browser, which the real production does.
+
+services:
+    mercure:
+        image: dunglas/mercure:v1.1
+        environment:
+            SERVER_NAME: ":80"
+            MERCURE_PUBLISHER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+            MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+            MERCURE_TRUSTED_ISSUERS: "https://${PROJECT_ROOT_DOMAIN}"
+            MERCURE_EXTRA_DIRECTIVES: |
+                anonymous
+                protocol_version_compatibility 8
+                publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY}
+                subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY}
+        healthcheck:
+            test: ["CMD", "wget", "--quiet", "--spider", "http://localhost/"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    php:
+        environment:
+            MERCURE_URL: "http://mercure/.well-known/mercure"
+            MERCURE_JWT_SECRET: "!ChangeThisMercureHubJWTSecretKey!"

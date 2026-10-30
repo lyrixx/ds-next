@@ -57,8 +57,10 @@ function create_default_context(): Context
     ];
 
     // The extensions of the project (see the README of the demo extension), whatever the
-    // variables of castor.php say: they add their compose files and their PHP extensions
+    // variables of castor.php say: they add their compose files, their PHP extensions,
+    // and their reverse proxy in front of the frontend
     $data['extensions'] = get_extensions($data['root_dir']);
+    $data['reverse_proxies'] = [];
     foreach ($data['extensions'] as $extension) {
         $data['docker_compose_files'] = [
             ...$data['docker_compose_files'],
@@ -67,7 +69,11 @@ function create_default_context(): Context
                 "extensions/{$extension}/docker-compose.version.yml",
             ]),
         ];
-        $data['php_extensions'] = [...$data['php_extensions'], ...read_extension_manifest($data['root_dir'], $extension)['php_extensions']];
+        $manifest = read_extension_manifest($data['root_dir'], $extension);
+        $data['php_extensions'] = [...$data['php_extensions'], ...$manifest['php_extensions']];
+        if ($manifest['reverse_proxy']) {
+            $data['reverse_proxies'][] = $manifest['reverse_proxy'];
+        }
     }
     $data['php_extensions'] = array_values(array_unique($data['php_extensions']));
 
@@ -206,13 +212,14 @@ function get_extensions(string $rootDir): array
 }
 
 /**
- * What an extension adds to the variables of castor.php, from its optional extension.json.
+ * What an extension adds to the stack, from its optional extension.json: PHP extensions,
+ * and the service of the extension which is a reverse proxy, with its port.
  *
- * @return array{php_extensions: list<string>}
+ * @return array{php_extensions: list<string>, reverse_proxy: array{service: string, port: int}|null}
  */
 function read_extension_manifest(string $rootDir, string $extension): array
 {
-    $manifest = ['php_extensions' => []];
+    $manifest = ['php_extensions' => [], 'reverse_proxy' => null];
     $file = "{$rootDir}/" . EXTENSIONS_DIR . "/{$extension}/extension.json";
 
     if (!is_file($file)) {
@@ -231,5 +238,13 @@ function read_extension_manifest(string $rootDir, string $extension): array
         throw new \RuntimeException(\sprintf('The "php_extensions" of the "%s" file must be a list of names, e.g. ["redis"].', EXTENSIONS_DIR . "/{$extension}/extension.json"));
     }
 
-    return $manifest;
+    $proxy = $manifest['reverse_proxy'];
+    if (null !== $proxy && (!\is_array($proxy) || !\is_string($proxy['service'] ?? null) || !\is_int($proxy['port'] ?? null) || \count($proxy) > 2)) {
+        throw new \RuntimeException(\sprintf('The "reverse_proxy" of the "%s" file must be a service and its port, e.g. {"service": "varnish", "port": 80}.', EXTENSIONS_DIR . "/{$extension}/extension.json"));
+    }
+
+    return [
+        'php_extensions' => $manifest['php_extensions'],
+        'reverse_proxy' => null === $proxy ? null : ['service' => $proxy['service'], 'port' => $proxy['port']],
+    ];
 }

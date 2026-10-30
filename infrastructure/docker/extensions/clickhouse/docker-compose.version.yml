@@ -1,0 +1,9 @@
+# The version of ClickHouse, in dev and in the production stack. It belongs to the
+# project: "castor starter:sync" never changes this file, since an upgrade of the data
+# must be planned.
+
+services:
+    clickhouse:
+        image: clickhouse/clickhouse-server:26.8
+        volumes:
+            - clickhouse-data:/var/lib/clickhouse

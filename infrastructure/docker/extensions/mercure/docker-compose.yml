@@ -1,0 +1,37 @@
+# The mercure extension of docker-starter (see README.md), updated by "castor
+# starter:sync". Paths are relative to infrastructure/docker/.
+
+services:
+    mercure:
+        image: dunglas/mercure:v1.1
+        environment:
+            SERVER_NAME: ":80"
+            # The secret of the dev stack, published in the documentation of Mercure
+            MERCURE_PUBLISHER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+            MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+            # The "iss" claim of the tokens of the Mercure protocol 1.0
+            MERCURE_TRUSTED_ISSUERS: "https://${PROJECT_ROOT_DOMAIN}"
+            # The tokens of the protocol 0.x too (e.g. MercureBundle < 0.6), the
+            # subscription API, and the debugger on /.well-known/mercure/debug/
+            MERCURE_EXTRA_DIRECTIVES: |
+                anonymous
+                subscriptions
+                debugger
+                protocol_version_compatibility 8
+                publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY}
+                subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY}
+        healthcheck:
+            test: ["CMD", "wget", "--quiet", "--spider", "http://localhost/"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+        # On the domains of the application, so that the browser subscribes without
+        # CORS, with the cookies of the application
+        labels:
+            - "traefik.enable=true"
+            - "project-name=${PROJECT_NAME}"
+            - "traefik.http.routers.${PROJECT_NAME}-mercure.rule=(Host(${PROJECT_DOMAINS})) && PathPrefix(`/.well-known/mercure`)"
+            - "traefik.http.routers.${PROJECT_NAME}-mercure.tls=true"
+            - "traefik.http.services.${PROJECT_NAME}-mercure.loadbalancer.server.port=80"
+        profiles:
+            - default

@@ -200,6 +200,30 @@ function get_starter_test_cases(): array
             assert_contains('unknown keys (apt_packages)', $output);
         },
 
+        'The reverse proxies of the extensions are chained in front of the frontend' => static function (string $project): void {
+            $environment = dump_project($project)['compose_environment'];
+            assert_same('app-frontend', $environment['PROJECT_HTTP_SERVICE'], 'without reverse proxy');
+
+            $extensions = "{$project}/infrastructure/docker/extensions";
+            fs()->dumpFile("{$extensions}/a/extension.json", '{"reverse_proxy": {"service": "a-proxy", "port": 80}}');
+            fs()->dumpFile("{$extensions}/b/extension.json", '{"reverse_proxy": {"service": "b", "port": 6081}}');
+            fs()->mkdir("{$extensions}/c");
+
+            $environment = dump_project($project)['compose_environment'];
+            assert_same('app-a-proxy', $environment['PROJECT_HTTP_SERVICE'], 'the router sends the requests to the first one');
+            assert_same('b:6081', $environment['A_PROXY_UPSTREAM'], 'which forwards them to the next one');
+            assert_same('frontend:8080', $environment['B_UPSTREAM'], 'which forwards them to nginx');
+        },
+
+        'A reverse proxy needs a service and a port' => static function (string $project): void {
+            fs()->dumpFile("{$project}/infrastructure/docker/extensions/a/extension.json", '{"reverse_proxy": {"service": "a"}}');
+
+            [$exitCode, $output] = run_castor($project, ['test-dump']);
+
+            assert_same(true, 0 !== $exitCode, "exit code\n{$output}");
+            assert_contains('must be a service and its port', $output);
+        },
+
         'The tasks of the extensions are available' => static function (string $project): void {
             fs()->dumpFile("{$project}/infrastructure/docker/extensions/a/tasks.php", <<<'PHP'
                 <?php

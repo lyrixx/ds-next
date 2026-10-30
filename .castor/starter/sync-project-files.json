@@ -1,6 +1,7 @@
 [
     "infrastructure/docker/extensions/*/docker-compose.version.yml",
     "infrastructure/docker/extensions/cron/crontab",
+    "infrastructure/docker/extensions/varnish/default.vcl",
     "infrastructure/docker/services/php/nginx/project.conf",
     "infrastructure/docker/services/php/php/mods-available/app-project.ini"
 ]

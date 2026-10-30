@@ -1,0 +1,8 @@
+# The chrome extension of docker-starter (see README.md), updated by "castor
+# starter:sync". Paths are relative to infrastructure/docker/.
+
+services:
+    chrome:
+        image: ghcr.io/browserless/chromium:v2.58.0
+        profiles:
+            - default

@@ -252,6 +252,18 @@ jobs:
                   echo 'rabbitmq ', (int) $rabbitmq->isConnected(), "\n";
                   echo 'meilisearch ', json_decode(file_get_contents('http://meilisearch:7700/health'), true)['status'], "\n";
                   echo 'mailpit ', json_decode(file_get_contents('http://mailpit:8025/api/v1/info'), true)['Version'] ? 1 : 0, "\n";
+                  echo 'elasticsearch ', json_decode(file_get_contents('http://elasticsearch:9200/_cluster/health'), true)['status'], "\n";
+                  echo 'clickhouse ', trim(file_get_contents('http://app:app@clickhouse:8123/?query=SELECT%201')), "\n";
+                  echo 'gotenberg ', json_decode(file_get_contents('http://gotenberg:3000/health'), true)['status'], "\n";
+                  echo 'chrome ', isset(json_decode(file_get_contents('http://chrome:3000/json/version'), true)['Browser']) ? 1 : 0, "\n";
+                  $base64 = static fn (string $data) => rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+                  $jwt = $base64('{"alg":"HS256","typ":"JWT"}') . '.' . $base64('{"mercure":{"publish":["*"]}}');
+                  $jwt .= '.' . $base64(hash_hmac('sha256', $jwt, '!ChangeThisMercureHubJWTSecretKey!', true));
+                  echo 'mercure ', file_get_contents('http://mercure/.well-known/mercure', false, stream_context_create(['http' => [
+                      'method' => 'POST',
+                      'header' => "Authorization: Bearer {$jwt}\r\nContent-Type: application/x-www-form-urlencoded",
+                      'content' => 'topic=test&data=hello',
+                  ]])) ? 1 : 0, "\n";
                   EOPHP
 
                   castor builder -- php extensions.php | tee /tmp/extensions.txt
@@ -260,12 +272,25 @@ jobs:
                   grep -x "rabbitmq 1" /tmp/extensions.txt
                   grep -x "meilisearch available" /tmp/extensions.txt
                   grep -x "mailpit 1" /tmp/extensions.txt
+                  grep -E -x "elasticsearch (green|yellow)" /tmp/extensions.txt
+                  grep -x "clickhouse 1" /tmp/extensions.txt
+                  grep -x "gotenberg up" /tmp/extensions.txt
+                  grep -x "chrome 1" /tmp/extensions.txt
+                  grep -x "mercure 1" /tmp/extensions.txt
 
                   castor postgres -- "SELECT 'postgres task OK';" | grep "postgres task OK"
                   castor mariadb -- "SELECT 'mariadb task OK';" | grep "mariadb task OK"
+                  castor clickhouse -- "SELECT 'clickhouse task OK'" | grep "clickhouse task OK"
                   castor demo:call | grep "Hostname"
 
-                  for host in demo mailpit meilisearch rabbitmq redis; do
+                  for host in clickhouse demo elasticsearch mailpit meilisearch rabbitmq redis; do
                       curl --fail --insecure --silent --output /dev/null -H "Host: ${host}.app.test" https://127.0.0.1
                   done
+                  # Kibana takes a while to start
+                  curl --fail --insecure --silent --output /dev/null --retry 30 --retry-delay 5 --retry-all-errors -H "Host: kibana.app.test" https://127.0.0.1/api/status
+
+                  # The reverse proxies: redirection.io, then Varnish, then nginx
+                  curl --fail --insecure --silent --dump-header - --output /dev/null -H "Host: app.test" https://127.0.0.1 | grep -i "^x-cache: MISS"
+                  # Mercure, on the domain of the application
+                  curl --insecure --silent -H "Host: app.test" "https://127.0.0.1/.well-known/mercure?topic=test" --max-time 2 --output /dev/null --write-out '%{http_code}' | grep -x 200 || [ $? -eq 28 ]
             # <<< docker-starter only

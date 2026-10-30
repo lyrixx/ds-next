@@ -137,18 +137,30 @@ keeps the volumes of the extension, and their data.
 | `rabbitmq` | RabbitMQ, its dashboard on `https://rabbitmq.<root_domain>`, and the `amqp` PHP extension |
 | `meilisearch` | Meilisearch, and its dashboard on `https://meilisearch.<root_domain>` |
 | `mailpit` | Mailpit, which catches the emails sent in dev, on `https://mailpit.<root_domain>` |
+| `elasticsearch` | Elasticsearch, and Kibana on `https://kibana.<root_domain>` (dev only) |
+| `clickhouse` | ClickHouse, and its SQL console on `https://clickhouse.<root_domain>/play` |
+| `mercure` | A Mercure hub, on `https://<root_domain>/.well-known/mercure` |
+| `gotenberg` | Gotenberg, which converts HTML and office documents to PDF |
+| `chrome` | A headless Chrome (Browserless) in dev, for the end-to-end tests |
 | `cron` | A `cron` service in dev, which runs the jobs of the project |
+| `varnish` | Varnish in front of nginx, in dev |
+| `redirectionio` | The redirection.io agent in front of the application, in dev |
 | `demo` | A model to write an extension |
 
 The `README.md` of each extension says what to configure in the application
 (e.g. the DSN).
 
 The version of the services which keep data (PostgreSQL, MariaDB, RabbitMQ,
-Meilisearch) is in the `docker-compose.version.yml` file of their extension. It
-belongs to your project: `castor starter:sync` never changes it, since a new
-version cannot always read the data of the previous one. Upgrade it when you
-planned the migration of the data. The `crontab` of the `cron` extension belongs
-to your project too.
+Meilisearch, Elasticsearch, ClickHouse) is in the `docker-compose.version.yml`
+file of their extension. It belongs to your project: `castor starter:sync` never
+changes it, since a new version cannot always read the data of the previous one.
+Upgrade it when you planned the migration of the data. The `crontab` of the
+`cron` extension and the VCL of the `varnish` one belong to your project too.
+
+`varnish` and `redirectionio` are reverse proxies: when your project has them,
+the router sends the requests of the application to the first one, which
+forwards them to the next one, then to nginx (Traefik → redirection.io →
+Varnish → nginx). In production, your hosting runs them.
 
 Your project can also have its own extensions: `castor starter:sync` never
 touches a directory that docker-starter does not have. See the
@@ -623,65 +635,6 @@ at https://encore.app.test and click on accept.
     ```
 </details>
 
-### How to add Elasticsearch and Kibana
-
-<details>
-
-<summary>Read the cookbook</summary>
-
-In order to use Elasticsearch and Kibana, you should add the following content
-to the `infrastructure/docker/docker-compose.project.yml` file:
-
-```yaml
-volumes:
-    elasticsearch-data: {}
-
-services:
-    elasticsearch:
-        image: elasticsearch:7.8.0
-        volumes:
-            - elasticsearch-data:/usr/share/elasticsearch/data
-        environment:
-            - "discovery.type=single-node"
-        labels:
-            - "traefik.enable=true"
-            - "project-name=${PROJECT_NAME}"
-            - "traefik.http.routers.${PROJECT_NAME}-elasticsearch.rule=Host(`elasticsearch.${PROJECT_ROOT_DOMAIN}`)"
-            - "traefik.http.routers.${PROJECT_NAME}-elasticsearch.tls=true"
-        healthcheck:
-            test: "curl --fail http://localhost:9200/_cat/health || exit 1"
-            interval: 5s
-            timeout: 5s
-            retries: 5
-        profiles:
-            - default
-
-    kibana:
-        image: kibana:7.8.0
-        depends_on:
-            - elasticsearch
-        labels:
-            - "traefik.enable=true"
-            - "project-name=${PROJECT_NAME}"
-            - "traefik.http.routers.${PROJECT_NAME}-kibana.rule=Host(`kibana.${PROJECT_ROOT_DOMAIN}`)"
-            - "traefik.http.routers.${PROJECT_NAME}-kibana.tls=true"
-        profiles:
-            - default
-```
-
-Then, you will be able to browse:
-
-* `https://kibana.<root_domain>`
-* `https://elasticsearch.<root_domain>`
-
-In your application, you can use the following configuration:
-
-* scheme: `http`;
-* host: `elasticsearch`;
-* port: `9200`.
-
-</details>
-
 ### How to use with Sylius
 
 <details>
@@ -693,126 +646,6 @@ If you want to install a Sylius project, you can run (before `castor init`):
 ```bash
 castor sylius
 ```
-
-</details>
-
-### How to add Mercure
-
-<details>
-
-<summary>Read the cookbook</summary>
-
-In order to use Mercure, you should add the following content to the
-`infrastructure/docker/docker-compose.project.yml` file:
-
-```yaml
-services:
-    mercure:
-        image: dunglas/mercure
-        environment:
-            - "MERCURE_PUBLISHER_JWT_KEY=password"
-            - "MERCURE_SUBSCRIBER_JWT_KEY=password"
-            - "ALLOW_ANONYMOUS=1"
-            - "CORS_ALLOWED_ORIGINS=*"
-        labels:
-            - "traefik.enable=true"
-            - "project-name=${PROJECT_NAME}"
-            - "traefik.http.routers.${PROJECT_NAME}-mercure.rule=Host(`mercure.${PROJECT_ROOT_DOMAIN}`)"
-            - "traefik.http.routers.${PROJECT_NAME}-mercure.tls=true"
-        profiles:
-            - default
-```
-
-If you are using Symfony, you must put the following configuration in the `.env` file:
-
-```
-MERCURE_PUBLISH_URL=http://mercure/.well-known/mercure
-MERCURE_JWT_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6W10sInB1Ymxpc2giOltdfX0.t9ZVMwTzmyjVs0u9s6MI7-oiXP-ywdihbAfPlghTBeQ
-```
-
-</details>
-
-### How to add redirection.io
-
-<details>
-
-<summary>Read the cookbook</summary>
-
-In order to use redirection.io, you should add the following content to the
-`infrastructure/docker/docker-compose.project.yml` file to run the agent:
-
-```yaml
-services:
-    redirectionio-agent:
-        build: services/redirectionio-agent
-```
-
-Add the following file `infrastructure/docker/services/redirectionio-agent/Dockerfile`:
-
-```Dockerfile
-FROM alpine:3.12 AS alpine
-
-WORKDIR /tmp
-
-RUN apk add --no-cache wget ca-certificates \
-    && wget https://packages.redirection.io/dist/stable/2/any/redirectionio-agent-latest_any_amd64.tar.gz \
-    && tar -xzvf redirectionio-agent-latest_any_amd64.tar.gz
-
-FROM scratch
-
-# Binary copied from tar
-COPY --from=alpine /tmp/redirection-agent/redirectionio-agent /usr/local/bin/redirectionio-agent
-
-# Configuration, can be replaced by your own
-COPY etc /etc
-
-# Root SSL Certificates, needed as we do HTTPS requests to our service
-COPY --from=alpine /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
-CMD ["/usr/local/bin/redirectionio-agent"]
-```
-
-Add `infrastructure/docker/services/redirectionio-agent/etc/redirectionio/agent.yml`:
-
-```yaml
-instance_name: "my-instance-dev" ### You may want to change this
-listen: 0.0.0.0:10301
-```
-
-Then you'll need `wget`. In
-`infrastructure/docker/services/php/Dockerfile`, in stage `frontend`:
-
-```Dockerfile
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        wget \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
-```
-
-You can group this command with another one.
-
-Then, **after** installing nginx, you need to install the module:
-
-```Dockerfile
-RUN wget -q -O - https://packages.redirection.io/gpg.key | gpg --dearmor > /usr/share/keyrings/redirection.io.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/redirection.io.gpg] https://packages.redirection.io/deb/stable/2 focal main" | tee -a /etc/apt/sources.list.d/packages_redirection_io_deb.list \
-    && apt-get update \
-    && apt-get install libnginx-mod-redirectionio \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
-```
-
-Finally, you need to edit
-`infrastructure/docker/services/php/nginx/conf.d/default.conf` to add the
-following configuration in the `server` block:
-
-```
-redirectionio_pass redirectionio-agent:10301;
-redirectionio_project_key "AAAAAAAAAAAAAAAA:BBBBBBBBBBBBBBBB";
-```
-
-**Don't forget to change the project key**.
 
 </details>
 
@@ -873,31 +706,6 @@ RUN phpenmod blackfire
 ```
 
 Here also, You can group this command with another one.
-
-</details>
-
-### How to add Chrome Headless
-
-<details>
-
-<summary>Read the cookbook</summary>
-
-If you want to enable Headless Chrome in your project, run the following command (before `castor init`):
-
-```bash
-castor chrome
-```
-
-If your project is already initialized, you can add it to the `infrastructure/docker/docker-compose.project.yml` file:
-
-```yaml
-services:
-  # ...
-  chrome:
-    image: ghcr.io/browserless/chromium
-    ports:
-      - "9222:3000"
-```
 
 </details>
 
