@@ -246,7 +246,8 @@ function stop(
         $command[] = $service;
     }
 
-    docker_compose($command, profiles: $profiles);
+    // All the profiles by default: the workers too
+    docker_compose($command, profiles: $profiles ?: ['*']);
 }
 
 /**
