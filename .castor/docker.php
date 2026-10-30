@@ -475,6 +475,7 @@ function get_build_args(Context $c): array
         'PHP_EXTENSIONS' => implode(' ', $c['php_extensions']),
         'PHP_VERSION' => $c['php_version'],
         'PROJECT_NAME' => $c['project_name'],
+        'WRITABLE_DIRS' => implode(' ', $c['writable_dirs']),
     ];
 
     // With true, the Dockerfile picks the version

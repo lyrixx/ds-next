@@ -31,6 +31,9 @@ function create_default_context(): Context
         // Node.js and Yarn in the builder: true for the version of the Dockerfile, a version
         // (e.g. '22' or '22.x'), or false for none (e.g. with the Symfony AssetMapper)
         'nodejs' => true,
+        // Directories of the application written at runtime in production, usually the
+        // mount points of volumes: owned by the application user in the "php" image
+        'writable_dirs' => [],
         'docker_compose_files' => [
             'docker-compose.yml',
             'docker-compose.dev.yml',

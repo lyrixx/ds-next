@@ -253,6 +253,8 @@ RUN if [ -f composer.json ]; then \
 
 FROM php-base AS php
 
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 ENV APP_ENV=prod
 ENV APP_DEBUG=0
 
@@ -279,6 +281,17 @@ ARG APP_PATH
 WORKDIR ${APP_PATH}
 
 COPY --from=app-build --chown=app:app ${APP_PATH} ${APP_PATH}
+
+# The directories the application writes in at runtime, usually the mount points of
+# volumes, from the "writable_dirs" variable of castor.php (e.g. "var/share public/uploads"):
+# owned by the application user, so that a volume inherits it when it is first created
+ARG WRITABLE_DIRS=""
+# hadolint ignore=SC3054
+RUN read -ra dirs <<< "${WRITABLE_DIRS}" \
+    && if [ "${#dirs[@]}" -gt 0 ]; then \
+        mkdir -p "${dirs[@]}" \
+        && chown app:app "${dirs[@]}"; \
+    fi
 
 USER 1000:1000
 

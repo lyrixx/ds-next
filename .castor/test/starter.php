@@ -101,15 +101,18 @@ function get_starter_test_cases(): array
                 'PHP_EXTENSIONS' => '',
                 'PHP_VERSION' => '8.5',
                 'PROJECT_NAME' => 'app',
+                'WRITABLE_DIRS' => '',
             ];
             assert_same($default, dump_project($project)['build_args'], 'default');
 
             $result = dump_project($project, [
                 'php_extensions' => ['imagick', 'redis'],
                 'nodejs' => false,
+                'writable_dirs' => ['var/share', 'public/uploads'],
             ]);
             assert_same(array_replace($default, [
                 'PHP_EXTENSIONS' => 'imagick redis',
+                'WRITABLE_DIRS' => 'var/share public/uploads',
                 'NODEJS_VERSION' => '',
             ]), $result['build_args'], 'variables');
         },

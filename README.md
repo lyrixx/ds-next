@@ -55,7 +55,13 @@ the builder: `true` for the version of docker-starter, a major version (e.g.
 `'22'`) to pin another one, or `false` if the application does not need them
 (e.g. with the Symfony AssetMapper). Yarn is the version of the `packageManager`
 field of `package.json`, or the latest stable one: a project still on Yarn 1
-pins it (`"packageManager": "yarn@1.22.22"`).
+pins it (`"packageManager": "yarn@1.22.22"`);
+
+* `writable_dirs` (optional, default: `[]`): The directories the application
+writes in at runtime in production, relative to the application directory,
+usually the mount points of volumes (e.g. `['var/share', 'public/uploads']`):
+they belong to the application user in the `php` image, so that a volume
+inherits it when it is first created.
 
 For example:
 
