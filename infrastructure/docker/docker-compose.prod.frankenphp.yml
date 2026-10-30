@@ -1,0 +1,10 @@
+# The production stack with FrankenPHP (the "php_server" variable of castor.php),
+# loaded after docker-compose.prod.yml: the "php" image alone serves the application.
+
+services:
+    php:
+        ports:
+            - "${HTTP_PORT:-8000}:8080"
+        volumes: !reset []
+
+    nginx: !reset null

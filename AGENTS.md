@@ -53,7 +53,8 @@ Without option, the `default` context applies.
 - Services (PostgreSQL, Redis...) are extensions, in `infrastructure/docker/extensions/<name>/`
   (see the `README.md` of each one): PostgreSQL 16 by default, user/pass/db = `app`/`app`.
   Add or remove one with `castor starter:add <name>` / `castor starter:remove <name>`
-- nginx + php-fpm (service `frontend`), Traefik router, HTTPS on `<root_domain>` (see `castor.php`)
+- nginx + php-fpm (service `frontend`), or FrankenPHP with `'php_server' => 'frankenphp'` in
+  `castor.php`; Traefik router, HTTPS on `<root_domain>` (see `castor.php`)
 - Node/yarn only inside the `builder` container
 - Production ships as two images (`php` and `nginx`), built from the "Production stages" of
   `infrastructure/docker/services/php/Dockerfile` and pushed by `.github/workflows/build-push.yml`.

@@ -103,6 +103,51 @@ jobs:
                   curl --fail --silent --retry 5 --retry-all-errors http://127.0.0.1:8000 | grep "Environment: prod"
                   CASTOR_CONTEXT=prod castor builder -- pwd | grep -x /var/www
 
+    frankenphp:
+        name: Test with FrankenPHP
+        runs-on: ubuntu-latest
+        env:
+            DS_PHP_SERVER: frankenphp
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                persist-credentials: false
+
+            - name: Set up Docker Buildx, the registry and Castor
+              uses: ./.github/actions/setup
+
+            - name: "Build and start the infrastructure"
+              run: "castor start"
+
+            - name: "Test HTTP server"
+              run: |
+                  set -e
+                  set -o pipefail
+
+                  curl --fail --insecure --silent --retry 5 --retry-all-errors -H "Host: app.test" https://127.0.0.1 | grep "Hello world"
+
+            - name: "Test the PHP extensions"
+              run: |
+                  set -e
+                  set -o pipefail
+
+                  castor builder -- php -m | tee /tmp/modules.txt
+                  for module in amqp apcu intl pdo_mysql pdo_pgsql redis uuid; do
+                      grep -x "${module}" /tmp/modules.txt
+                  done
+
+            - name: "Build and start the production images"
+              run: "castor start"
+              env:
+                  CASTOR_CONTEXT: prod
+
+            - name: "Test production HTTP server"
+              run: |
+                  set -e
+                  set -o pipefail
+
+                  curl --fail --silent --retry 5 --retry-all-errors http://127.0.0.1:8000 | grep "Environment: prod"
+
     # <<< docker-starter only
     prod-images:
         name: Test production images

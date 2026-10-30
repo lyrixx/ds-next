@@ -1,0 +1,16 @@
+#!/bin/sh
+# phpenmod of Debian, for the PHP of the image of FrankenPHP (see the Dockerfile): enables
+# /etc/php/$PHP_VERSION/mods-available/<module>.ini in the conf.d/ directory of PHP, at
+# the priority of its "; priority=" line. This PHP has a single configuration for all
+# its SAPIs, so "-s <sapi>" is ignored.
+set -eu
+
+if [ "${1:-}" = -s ]; then
+    shift 2
+fi
+
+for module in "$@"; do
+    ini="/etc/php/${PHP_VERSION}/mods-available/${module}.ini"
+    priority="$(sed -n 's/^; priority=//p' "${ini}")"
+    ln -sf "${ini}" "${PHP_INI_DIR}/conf.d/${priority:-20}-${module}.ini"
+done

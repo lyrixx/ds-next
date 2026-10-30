@@ -1,0 +1,35 @@
+# The site of the application with FrankenPHP (the "php_server" variable of castor.php),
+# shared by the dev "frontend" container and the production "php" image. The images
+# replace "/var/www/application" with the APP_PATH build argument. The environment
+# variables below let a project add its own directives (e.g. the worker mode, a Mercure
+# hub) without changing this file: see "How to use FrankenPHP" in the README.
+{
+	{$CADDY_GLOBAL_OPTIONS}
+
+	# TLS is always terminated upstream (dev router, ingress, reverse proxy)
+	auto_https off
+
+	frankenphp {
+		{$FRANKENPHP_CONFIG}
+	}
+
+	servers {
+		# The router of the dev stack, or the reverse proxy of the production
+		trusted_proxies static private_ranges
+	}
+}
+
+:8080 {
+	root /var/www/application/public
+	encode zstd br gzip
+
+	# Used by the HEALTHCHECK of the production image
+	respond /ping 200
+
+	{$CADDY_SERVER_EXTRA_DIRECTIVES}
+
+	php_server {
+		# As nginx does for php-fpm: TLS is terminated upstream
+		env HTTPS on
+	}
+}

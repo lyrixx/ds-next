@@ -32,6 +32,7 @@
     front of nginx
   * `castor starter:sync` creates the files of the project that docker-starter adds
     (e.g. `app-project.ini`), then never changes them
+  * Add the `php_server` variable, to run PHP with FrankenPHP instead of nginx and php-fpm
   * Add the `starter-sync` workflow, which opens a pull request every week with
     `castor starter:sync`, and the `.github/actions/setup` composite action, with
     the steps shared by the jobs of the CI

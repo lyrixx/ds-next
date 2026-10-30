@@ -32,6 +32,10 @@ will be available;
 
 * `php_version` (optional, default: `8.5`): This is the PHP version installed inside the containers.
 
+* `php_server` (optional, default: `fpm`): How the images run PHP: `fpm`
+(nginx and php-fpm), or `frankenphp` (see
+[How to use FrankenPHP](#how-to-use-frankenphp));
+
 * `app_dir` (optional, default: `application`): This is the directory of the
 application, relative to the root of the repository. Use `''` if the
 application lives at the root of the repository;
@@ -920,9 +924,38 @@ Finally, you must :
 
 <summary>Read the cookbook</summary>
 
-Migrating to FrankenPHP involves a lot of changes. You can take inspiration from
-the following [repostory](https://github.com/lyrixx/async-messenger-mercure)
-and specifically [this commit](https://github.com/lyrixx/async-messenger-mercure/commit/9ac8776253f3950a6c57d457b3742923f9e096a7).
+Set the `php_server` variable to `frankenphp` in `castor.php`, then rebuild the
+images with `castor build`. [FrankenPHP](https://frankenphp.dev/) then replaces
+nginx and php-fpm:
+
+* the images are built on the image of FrankenPHP, with the same PHP extensions
+  (`php_extensions` keeps the names of the Debian packages, e.g. `pgsql`), and the
+  same settings (`services/php/php/mods-available/`, `app-project.ini` included);
+* the dev `frontend` container runs FrankenPHP on port 8080, behind the router, with
+  the site of `services/php/frankenphp/Caddyfile` (instead of `nginx/project.conf`);
+* the production stack has a single `php` image, which serves the application on
+  port 8080 (no `nginx` image).
+
+This PHP has a single configuration for the web and the command line: the settings
+of `app-fpm.ini` (e.g. `memory_limit = 128M`) also apply to the commands of the
+`php` image in production (workers, cron jobs), unless they set their own (`php -d
+memory_limit=1G bin/console ...`).
+
+To add directives to the site (e.g. the worker mode, or a Mercure hub), use the
+environment variables of the Caddyfile, in `docker-compose.project.yml` (and in
+`docker-compose.prod.project.yml` for the `php` service):
+
+```yaml
+services:
+    frontend:
+        environment:
+            FRANKENPHP_CONFIG: "worker /var/www/application/public/index.php"
+            CADDY_SERVER_EXTRA_DIRECTIVES: |
+                header X-Frame-Options DENY
+```
+
+The version of FrankenPHP is in the `FRANKENPHP_VERSION` argument of the
+`Dockerfile`.
 
 </details>
 

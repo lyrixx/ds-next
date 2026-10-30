@@ -11,7 +11,19 @@
 # and the application may live in a sub directory (see "app_dir" in .castor/starter/context.php)
 ARG APP_PATH=/var/www/application
 
-FROM debian:13.7-slim AS php-base
+# How the images run PHP, from the "php_server" variable of castor.php: "fpm" (nginx and
+# php-fpm, with the PHP packages of Sury), or "frankenphp" (FrankenPHP, on its own image:
+# it needs a thread-safe PHP, which Sury does not build)
+ARG PHP_SERVER=fpm
+ARG PHP_VERSION=8.5
+ARG FRANKENPHP_VERSION=1.13
+# Minimal patch version of each PHP branch, to bump after a security release: it
+# invalidates the build cache (local and registry) of the PHP packages, which would
+# keep the vulnerable version otherwise, and the build fails until Sury (or the image of
+# FrankenPHP) publishes it
+ARG PHP_MIN_VERSIONS="8.3.36 8.4.27 8.5.12"
+
+FROM debian:13.7-slim AS php-base-fpm
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -34,10 +46,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 
 ARG PHP_VERSION
-# Minimal patch version of each PHP branch, to bump after a security release: it
-# invalidates the build cache (local and registry) of the PHP packages, which would
-# keep the vulnerable version otherwise, and the build fails until Sury publishes it
-ARG PHP_MIN_VERSIONS="8.3.36 8.4.27 8.5.12"
+ARG PHP_MIN_VERSIONS
 # The extensions of the project, from the "php_extensions" variable of castor.php: e.g.
 # "imagick redis" installs php8.5-imagick and php8.5-redis
 ARG PHP_EXTENSIONS=""
@@ -69,6 +78,63 @@ RUN read -ra extensions <<< "${PHP_EXTENSIONS}" \
         fi; \
     done
 
+# hadolint ignore=DL3006
+FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php${PHP_VERSION}-trixie AS php-base-frankenphp
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# The one of the image checks its admin API: the "frontend" and "php" stages have theirs
+HEALTHCHECK NONE
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        bash-completion \
+        gnupg \
+        procps \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+
+ARG PHP_VERSION
+ARG PHP_MIN_VERSIONS
+ARG PHP_EXTENSIONS=""
+
+# The same extensions as the "fpm" images, by the names of install-php-extensions (the
+# others are built in this PHP). Under /usr/bin too, for the scripts with a minimal PATH
+# (e.g. the jobs of cron)
+# hadolint ignore=SC3054,SC3060
+RUN read -ra extensions <<< "${PHP_EXTENSIONS}" \
+    && names=() \
+    && for extension in "${extensions[@]}"; do \
+        case "${extension}" in \
+            pgsql) names+=(pdo_pgsql pgsql) ;; \
+            mysql) names+=(pdo_mysql mysqli) ;; \
+            *) names+=("${extension}") ;; \
+        esac; \
+    done \
+    && install-php-extensions apcu bcmath gd intl opcache uuid zip "${names[@]}" \
+    && ln -s /usr/local/bin/php /usr/bin/php \
+    && for min in ${PHP_MIN_VERSIONS}; do \
+        if [ "${min%.*}" = "${PHP_VERSION}" ] && dpkg --compare-versions "$(php -r 'echo PHP_VERSION;')" lt "${min}"; then \
+            echo "PHP ${min} is required, the image of FrankenPHP does not have it yet." >&2; \
+            exit 1; \
+        fi; \
+    done
+
+# phpenmod, as on Debian, for the ini files of mods-available/ (see below)
+COPY frankenphp/phpenmod /usr/local/bin/phpenmod
+
+# Caddy only: the "frontend" and "php" stages set them back
+ENV XDG_CONFIG_HOME=""
+ENV XDG_DATA_HOME=""
+
+# hadolint ignore=DL3006
+FROM php-base-${PHP_SERVER} AS php-base
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# The image of FrankenPHP sets PHP_VERSION to the patch version (e.g. 8.5.12)
+ARG PHP_VERSION
+
 # The system packages of the project, in every image, from the "system_packages"
 # variable of castor.php: e.g. "imagemagick ghostscript"
 ARG SYSTEM_PACKAGES=""
@@ -90,7 +156,7 @@ ENV COMPOSER_MEMORY_LIMIT=-1
 
 WORKDIR /var/www
 
-FROM php-base AS frontend
+FROM php-base AS frontend-fpm
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -126,6 +192,29 @@ EXPOSE 8080
 
 CMD ["runsvdir", "-P", "/etc/service"]
 
+FROM php-base AS frontend-frankenphp
+
+ARG APP_PATH
+
+# Same site as the production image (see "Production stages"). The container runs as
+# the host user, so the storage of Caddy must be writable by anyone
+COPY frankenphp/Caddyfile /etc/frankenphp/Caddyfile
+RUN sed -i "s#/var/www/application#${APP_PATH}#" /etc/frankenphp/Caddyfile \
+    && chmod -R 777 /config /data
+ENV XDG_CONFIG_HOME=/config
+ENV XDG_DATA_HOME=/data
+
+RUN phpenmod app-default \
+    && phpenmod -s fpm app-fpm \
+    && phpenmod app-project
+
+EXPOSE 8080
+
+CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile", "--adapter", "caddyfile"]
+
+# hadolint ignore=DL3006
+FROM frontend-${PHP_SERVER} AS frontend
+
 FROM php-base AS worker
 
 RUN phpenmod app-project
@@ -153,10 +242,19 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         "git" \
         "make" \
-        "php${PHP_VERSION}-dev" \
         "unzip" \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+
+# The headers of PHP, for pie: the image of FrankenPHP has them
+ARG PHP_SERVER
+RUN if [ "${PHP_SERVER}" = fpm ]; then \
+        apt-get update \
+        && apt-get install -y --no-install-recommends \
+            "php${PHP_VERSION}-dev" \
+        && apt-get clean \
+        && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*; \
+    fi
 
 # The system packages of the project only needed in dev, from the
 # "builder_system_packages" variable of castor.php: e.g. "mariadb-client"
@@ -253,10 +351,12 @@ WORKDIR ${APP_PATH}
 # containers run as a non-root user. They talk to each other through the
 # php-fpm unix socket /var/run/php/php-fpm.sock, shared via a volume (docker
 # compose) or an emptyDir (Kubernetes). Cron jobs and workers, if any, are run
-# by the orchestrator with the "php" image (`bin/console ...`).
+# by the orchestrator with the "php" image (`bin/console ...`). With FrankenPHP
+# (PHP_SERVER=frankenphp), the "php" image alone serves the application, on port 8080.
 #
-# The php-fpm and nginx configuration is the one of the dev "frontend" stage
-# (php/ and nginx/), the production differences live in php/mods-available/app-prod.ini.
+# The php-fpm and nginx configuration (or the Caddyfile of FrankenPHP) is the one of
+# the dev "frontend" stage (php/, nginx/ and frankenphp/), the production differences
+# live in php/mods-available/app-prod.ini.
 #
 # The application source code is expected in the additional build context
 # named "app", pointing to the application directory (its .dockerignore applies),
@@ -300,12 +400,7 @@ RUN if [ -f composer.json ]; then \
         bin/console cache:warmup; \
     fi
 
-FROM php-base AS php
-
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
-ENV APP_ENV=prod
-ENV APP_DEBUG=0
+FROM php-base AS php-fpm
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -327,6 +422,42 @@ RUN groupadd -g 1000 app \
     && mkdir -p /var/run/php \
     && chown app:app /var/run/php
 
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
+    CMD ["sh", "-c", "SCRIPT_NAME=/ping SCRIPT_FILENAME=/ping cgi-fcgi -bind -connect /var/run/php/php-fpm.sock || exit 1"]
+
+CMD ["sh", "-c", "exec /usr/sbin/php-fpm${PHP_VERSION}"]
+
+FROM php-base AS php-frankenphp
+
+ARG APP_PATH
+
+# Same site as the dev "frontend" stage
+COPY frankenphp/Caddyfile /etc/frankenphp/Caddyfile
+RUN sed -i "s#/var/www/application#${APP_PATH}#" /etc/frankenphp/Caddyfile \
+    && phpenmod app-default \
+    && phpenmod -s fpm app-fpm \
+    && phpenmod app-prod \
+    && phpenmod app-project
+
+RUN groupadd -g 1000 app \
+    && useradd -M -u 1000 -g 1000 -s /bin/false app \
+    && chown -R app:app /config /data
+ENV XDG_CONFIG_HOME=/config
+ENV XDG_DATA_HOME=/data
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
+    CMD ["curl", "--fail", "--silent", "--output", "/dev/null", "http://127.0.0.1:8080/ping"]
+
+CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile", "--adapter", "caddyfile"]
+
+# hadolint ignore=DL3006
+FROM php-${PHP_SERVER} AS php
+
+ENV APP_ENV=prod
+ENV APP_DEBUG=0
+
 ARG APP_PATH
 WORKDIR ${APP_PATH}
 
@@ -344,11 +475,6 @@ RUN read -ra dirs <<< "${WRITABLE_DIRS}" \
     fi
 
 USER 1000:1000
-
-HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
-    CMD ["sh", "-c", "SCRIPT_NAME=/ping SCRIPT_FILENAME=/ping cgi-fcgi -bind -connect /var/run/php/php-fpm.sock || exit 1"]
-
-CMD ["sh", "-c", "exec /usr/sbin/php-fpm${PHP_VERSION}"]
 
 FROM nginx:1.29-alpine AS nginx
 

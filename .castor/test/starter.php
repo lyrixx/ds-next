@@ -132,6 +132,7 @@ function get_starter_test_cases(): array
                 'APP_PATH' => '/var/www/application',
                 'BUILDER_SYSTEM_PACKAGES' => '',
                 'PHP_EXTENSIONS' => '',
+                'PHP_SERVER' => 'fpm',
                 'PHP_VERSION' => '8.5',
                 'PROJECT_NAME' => 'app',
                 'SYSTEM_PACKAGES' => '',
@@ -257,6 +258,20 @@ function get_starter_test_cases(): array
             $result = dump_project($project, context: 'prod');
 
             assert_same(['docker-compose.prod.yml', 'docker-compose.prod.project.yml', 'docker-compose.prod.override.yml'], $result['data']['docker_compose_files'], 'docker_compose_files');
+        },
+
+        'FrankenPHP serves the application alone in the prod context' => static function (string $project): void {
+            $result = dump_project($project, ['php_server' => 'frankenphp'], context: 'prod');
+
+            assert_same('frankenphp', $result['build_args']['PHP_SERVER'], 'PHP_SERVER');
+            assert_same(['docker-compose.prod.yml', 'docker-compose.prod.frankenphp.yml'], $result['data']['docker_compose_files'], 'docker_compose_files');
+        },
+
+        'An unknown PHP server is refused' => static function (string $project): void {
+            [$exitCode, $output] = run_castor($project, ['test-dump'], ['php_server' => 'apache']);
+
+            assert_same(true, 0 !== $exitCode, "exit code\n{$output}");
+            assert_contains('must be "fpm" or "frankenphp", not "apache"', $output);
         },
 
         'The test context sets APP_ENV' => static function (string $project): void {

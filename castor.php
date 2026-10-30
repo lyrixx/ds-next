@@ -34,6 +34,7 @@ import(__DIR__ . '/.castor');
  *     app_dir: string,
  *     registry: ?string,
  *     http_port?: int,
+ *     php_server?: string,
  *     php_extensions?: list<string>,
  *     system_packages?: list<string>,
  *     builder_system_packages?: list<string>,
@@ -55,6 +56,7 @@ function create_default_variables(): array
         // In order to test docker stater, we need a way to pass different values.
         // You should remove the `$_SERVER` and hardcode your configuration.
         'php_version' => $_SERVER['DS_PHP_VERSION'] ?? '8.5',
+        'php_server' => $_SERVER['DS_PHP_SERVER'] ?? 'fpm',
         'app_dir' => $_SERVER['DS_APP_DIR'] ?? 'application',
         // Docker requires lowercase image names, but `${{ github.repository }}`
         // (GitHub Actions) keeps the case of the owner and of the repository

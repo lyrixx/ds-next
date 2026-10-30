@@ -22,6 +22,8 @@ function create_default_context(): Context
         'root_domain' => 'app.test',
         'extra_domains' => [],
         'php_version' => '8.5',
+        // How the images run PHP: 'fpm' (nginx and php-fpm) or 'frankenphp'
+        'php_server' => 'fpm',
         // Directory of the application, relative to the repository root ('' when the
         // application lives at the root of the repository)
         'app_dir' => 'application',
@@ -84,6 +86,10 @@ function create_default_context(): Context
 
     $data['app_dir'] = trim($data['app_dir'], '/');
 
+    if (!\in_array($data['php_server'], ['fpm', 'frankenphp'], true)) {
+        throw new \RuntimeException(\sprintf('The "php_server" variable of castor.php must be "fpm" or "frankenphp", not "%s".', $data['php_server']));
+    }
+
     $platform = strtolower(php_uname('s'));
     if (str_contains($platform, 'darwin')) {
         $data['macos'] = true;
@@ -131,6 +137,10 @@ function create_prod_context(): Context
     $c = create_default_context();
 
     $files = ['docker-compose.prod.yml'];
+    // A single "php" image, without nginx
+    if ('frankenphp' === $c['php_server']) {
+        $files[] = 'docker-compose.prod.frankenphp.yml';
+    }
     foreach ($c['extensions'] as $extension) {
         // Only the extensions with services in this stack: e.g. no mail catcher
         if (get_existing_docker_compose_files($c['root_dir'], ["extensions/{$extension}/docker-compose.prod.yml"])) {
