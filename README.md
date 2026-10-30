@@ -221,7 +221,7 @@ tools
 
 </details>
 
-### How to change the PHP settings
+### How to change the PHP and nginx settings
 
 <details>
 
@@ -236,6 +236,16 @@ docker-starter never changes this file:
 ; priority=60
 [PHP]
 memory_limit = 1G
+```
+
+Put the nginx directives of your project (headers, extra locations...) in
+`infrastructure/docker/services/php/nginx/project.conf`, included in the
+`server` block of the dev and production images. docker-starter never changes
+this file either. For example, to accept uploads up to 200 MB, along with
+`upload_max_filesize = 200M` and `post_max_size = 200M` in `app-project.ini`:
+
+```nginx
+client_max_body_size 200m;
 ```
 
 Then rebuild the images with `castor build`.

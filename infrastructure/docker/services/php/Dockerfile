@@ -104,6 +104,7 @@ ARG APP_PATH
 COPY php/fpm/php-fpm.conf /etc/php/${PHP_VERSION}/fpm/php-fpm.conf
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY nginx/conf.d/ /etc/nginx/conf.d/
+COPY nginx/project.conf /etc/nginx/project.conf
 RUN sed -i "s#/var/www/application#${APP_PATH}#" /etc/nginx/conf.d/default.conf \
     && mkdir -p /var/run/php && chmod 1777 /var/run/php
 RUN rm -rf /etc/service/
@@ -334,6 +335,7 @@ FROM nginx:1.29-alpine AS nginx
 ARG APP_PATH
 
 COPY nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf
+COPY nginx/project.conf /etc/nginx/project.conf
 RUN sed -i "s#/var/www/application#${APP_PATH}#" /etc/nginx/conf.d/default.conf
 
 COPY --from=app-build ${APP_PATH}/public ${APP_PATH}/public
