@@ -18,9 +18,10 @@ function all(): int
     $cs = cs();
     $phpstan = phpstan();
     $twigCs = twig_cs();
+    $lint = lint();
     $phpunit = phpunit();
 
-    return max($cs, $phpstan, $twigCs, $phpunit);
+    return max($cs, $phpstan, $twigCs, $lint, $phpunit);
 }
 
 #[AsTask(description: 'Installs tooling')]
@@ -92,6 +93,41 @@ function phpstan(
     }
 
     return docker_exit_code($command, workDir: '/var/www');
+}
+
+/**
+ * The linters of Symfony and Doctrine, when the application has them: they check what
+ * the static analysis does not see (the syntax of the configuration and of the
+ * templates, the mapping of the entities against the database).
+ */
+#[AsTask(description: 'Lints the YAML configuration and the Twig templates, and validates the Doctrine mapping', aliases: ['lint'])]
+function lint(): int
+{
+    $base = app_dir();
+
+    if (!is_file("{$base}/bin/console")) {
+        return 0;
+    }
+
+    $linters = [];
+    if (is_dir("{$base}/config") && is_dir("{$base}/vendor/symfony/yaml")) {
+        $linters['YAML'] = ['bin/console', 'lint:yaml', '--parse-tags', 'config/'];
+    }
+    if (is_dir("{$base}/templates") && is_dir("{$base}/vendor/symfony/twig-bundle")) {
+        $linters['Twig'] = ['bin/console', 'lint:twig', 'templates/'];
+    }
+    // Needs the database, migrated: it also checks that the mapping matches it
+    if (is_dir("{$base}/vendor/doctrine/doctrine-bundle")) {
+        $linters['Doctrine mapping'] = ['bin/console', 'doctrine:schema:validate'];
+    }
+
+    $exitCode = 0;
+    foreach ($linters as $name => $command) {
+        io()->section("Running the {$name} linter...");
+        $exitCode = max($exitCode, docker_exit_code($command));
+    }
+
+    return $exitCode;
 }
 
 #[AsTask(description: 'Runs Security audit')]

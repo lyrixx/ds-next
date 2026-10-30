@@ -28,6 +28,7 @@
   * Add support for PHP 8.4, 8.5
   * Add support for pie
   * Add some PHP tooling (PHP-CS-Fixer, PHPStan, Twig-CS-Fixer)
+  * Add `castor qa:lint`: the YAML and Twig linters of Symfony, and the Doctrine mapping validation
   * Update Composer to version 2.8
   * Require a minimal patch version of PHP, to force the upgrade after a security release
   * Add `app-project.ini`, the PHP settings of the project, in every image
