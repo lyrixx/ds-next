@@ -25,6 +25,9 @@ function create_default_context(): Context
         // The HTTP_PORT environment variable takes precedence.
         'http_port' => 8000,
         'registry' => null,
+        // Extensions installed in every image on top of those of docker-starter, by their
+        // name in the Debian packages: e.g. 'imagick' for php8.5-imagick
+        'php_extensions' => [],
         'docker_compose_files' => [
             'docker-compose.yml',
             'docker-compose.dev.yml',

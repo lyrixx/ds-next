@@ -95,6 +95,23 @@ function get_starter_test_cases(): array
             assert_same('9000', dump_project($project, ['http_port' => 8080], environment: ['HTTP_PORT' => '9000'])['compose_environment']['HTTP_PORT'], 'environment variable');
         },
 
+        'The images are configured with the variables' => static function (string $project): void {
+            $default = [
+                'APP_PATH' => '/var/www/application',
+                'PHP_EXTENSIONS' => '',
+                'PHP_VERSION' => '8.5',
+                'PROJECT_NAME' => 'app',
+            ];
+            assert_same($default, dump_project($project)['build_args'], 'default');
+
+            $result = dump_project($project, [
+                'php_extensions' => ['imagick', 'redis'],
+            ]);
+            assert_same(array_replace($default, [
+                'PHP_EXTENSIONS' => 'imagick redis',
+            ]), $result['build_args'], 'variables');
+        },
+
         'The prod context runs a dedicated stack' => static function (string $project): void {
             $result = dump_project($project, context: 'prod');
 
@@ -164,6 +181,7 @@ function create_test_project(): string
                 'app_dir' => docker\\app_dir(),
                 'container_app_dir' => docker\\container_app_dir(),
                 'compose_environment' => docker\\get_compose_environment(\$c),
+                'build_args' => docker\\get_build_args(\$c),
                 'phpunit_binary' => qa\\phpunit_binary(),
             ], \\JSON_THROW_ON_ERROR));
         }

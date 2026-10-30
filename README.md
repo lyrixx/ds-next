@@ -44,7 +44,11 @@ The `HTTP_PORT` environment variable takes precedence;
 layers and to push the production images. By default, it comes from the
 `REGISTRY` environment variable, set by the CI workflows. If you hardcode it,
 keep the environment variable as an override (lowercased, as Docker requires):
-`'registry' => strtolower($_SERVER['REGISTRY'] ?? 'ghcr.io/your-organization/your-project'),`.
+`'registry' => strtolower($_SERVER['REGISTRY'] ?? 'ghcr.io/your-organization/your-project'),`;
+
+* `php_extensions` (optional, default: `[]`): The PHP extensions to install in
+the images, on top of those of docker-starter, by their name in the Debian
+packages (e.g. `['imagick', 'redis']` installs `php8.5-imagick` and `php8.5-redis`).
 
 For example:
 

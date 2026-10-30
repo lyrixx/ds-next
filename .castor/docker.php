@@ -110,10 +110,11 @@ function build(
     $command = [
         '--profile', $profile ?: '*',
         'build',
-        '--build-arg', 'PHP_VERSION=' . variable('php_version'),
-        '--build-arg', 'PROJECT_NAME=' . variable('project_name'),
-        '--build-arg', 'APP_PATH=' . container_app_dir(),
     ];
+    foreach (get_build_args(context()) as $name => $value) {
+        $command[] = '--build-arg';
+        $command[] = "{$name}={$value}";
+    }
 
     if ($service) {
         docker_compose([...$command, $service]);
@@ -462,6 +463,21 @@ function workers_stop(): void
 }
 
 /**
+ * The build arguments of the images, from the variables of castor.php (see the Dockerfile).
+ *
+ * @return array<string, string>
+ */
+function get_build_args(Context $c): array
+{
+    return [
+        'APP_PATH' => container_app_dir($c),
+        'PHP_EXTENSIONS' => implode(' ', $c['php_extensions']),
+        'PHP_VERSION' => $c['php_version'],
+        'PROJECT_NAME' => $c['project_name'],
+    ];
+}
+
+/**
  * @return array<string, string>
  */
 function get_compose_environment(Context $c): array
@@ -718,10 +734,10 @@ function push(
         $command[] = $file;
     }
 
-    $command[] = '--set';
-    $command[] = '*.args.PHP_VERSION=' . $c['php_version'];
-    $command[] = '--set';
-    $command[] = '*.args.APP_PATH=' . container_app_dir($c);
+    foreach (get_build_args($c) as $name => $value) {
+        $command[] = '--set';
+        $command[] = "*.args.{$name}={$value}";
+    }
 
     if ($dryRun) {
         $command[] = '--print';

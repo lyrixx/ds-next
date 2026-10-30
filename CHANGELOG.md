@@ -13,6 +13,7 @@
   * Add the `app_dir` variable to move the application directory (or use the root of the repository)
   * Add the `http_port` variable, the port of the `prod` context
   * The `prod` context picks the optional `docker-compose.prod.override.yml` file
+  * Add the `php_extensions` variable, to install PHP extensions without editing the Dockerfile
   * Add `castor test:starter` to test the castor tasks shared with the projects
 * Services
   * Upgrade Traefik from v2.7 to v3.0

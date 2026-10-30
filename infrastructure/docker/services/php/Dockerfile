@@ -31,8 +31,14 @@ ARG PHP_VERSION
 # invalidates the build cache (local and registry) of the PHP packages, which would
 # keep the vulnerable version otherwise, and the build fails until Sury publishes it
 ARG PHP_MIN_VERSIONS="8.3.36 8.4.27 8.5.12"
+# The extensions of the project, from the "php_extensions" variable of castor.php: e.g.
+# "imagick redis" installs php8.5-imagick and php8.5-redis
+ARG PHP_EXTENSIONS=""
 
-RUN apt-get update \
+# hadolint 2.15 checks the commands as POSIX sh, whatever the SHELL above
+# hadolint ignore=SC3054,SC3060
+RUN read -ra extensions <<< "${PHP_EXTENSIONS}" \
+    && apt-get update \
     && apt-get install -y --no-install-recommends \
         "php${PHP_VERSION}-apcu" \
         "php${PHP_VERSION}-bcmath" \
@@ -47,6 +53,7 @@ RUN apt-get update \
         "php${PHP_VERSION}-uuid" \
         "php${PHP_VERSION}-xml" \
         "php${PHP_VERSION}-zip" \
+        "${extensions[@]/#/php${PHP_VERSION}-}" \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/* \
     && for min in ${PHP_MIN_VERSIONS}; do \
